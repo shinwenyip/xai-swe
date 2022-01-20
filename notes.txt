@@ -1,0 +1,43 @@
+1. get train test data
+2. Prepare data (project)
+    - Oversample minority class (defective class) - training data
+    - Binarize or Standardise data - features (X train and x test)
+    - Return (X_train_bin, X_test_bin, X_trainStd, X_testStd, featureBinarizer)
+4. Train model(project,model_name)
+    - X_train_bin, X_test_bin, X_trainStd, X_testStd, featureBinarizer = prepare_data(project)
+
+
+Project object
+- project_name
+- X_train , X_test , y_train, y_test
+- X_train_rs, y_train_rs
+- featureBinarizer
+- X_train_bin, X_test_bin
+- X_trainStd, X_testStd
+- models []: SVM, LR, BRCG, LogRR
+- explainer_dir = os.path.join('./explainer/',project_name)
+- model_dir
+
+1. define project_name
+2. Create ant = project object(project_name)
+3. (in project) define get_datasets() : if project_name = .... -> train_data, test_data
+4. 
+
+for BRCG  fit x_train_bin, y_train_rs       and X_test_bin
+LogRR fit x_train_bin, y_train_rs, X_trainStd
+others: fit self.X_trainStd,self.y_train_rs
+
+predicting
+LogRR: pred = self.model.predict(self.X_test_bin, self.X_testStd)
+        defect_prob = self.model.predict_proba(self.X_test_bin, self.X_testStd)
+BRCG: pred = self.model.predict(self.X_test_bin)
+others: pred = self.model.predict(self.X_testStd)
+            defect_prob = self.model.predict_proba(self.X_test)[:,1]
+if defect_prob: return pred, defect_prob else return pred
+
+how each model explains
+model = ant.models[model_name]
+    
+todo:
+explanation for CEM, LIME, SHAP, PyExplainer
+metrics compare for CEM,LIME,SHAP,PyExplainer - using IBM metrics + metrics we used
