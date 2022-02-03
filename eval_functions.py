@@ -181,11 +181,11 @@ def evaluate_model_performance(project,model_name):
         return
     
     elif  model_name == 'LR':
-        pred = model.predict(project.X_testStd)
-        print(model_name + " Training accuracy(in %):", metrics.accuracy_score(project.y_train_rs, model.predict(project.X_trainStd))*100)
+        pred = model.predict(project.X_test)
+        print(model_name + " Training accuracy(in %):", metrics.accuracy_score(project.y_train_rs, model.predict(project.X_train_rs))*100)
     elif  model_name == 'SVM':
-        pred = model.predict(project.X_testNorm)
-        print(model_name + " Training accuracy(in %):", metrics.accuracy_score(project.y_train_rs, model.predict(project.X_trainNorm))*100)
+        pred = model.predict(project.X_test)
+        print(model_name + " Training accuracy(in %):", metrics.accuracy_score(project.y_train_rs, model.predict(project.X_train_rs))*100)
     print(model_name + " Test accuracy(in %):", metrics.accuracy_score(y_test, pred)*100)
     print(model_name +" precision(in %):", metrics.precision_score(y_test, pred)*100)
     print(model_name +" recall(in %):", metrics.recall_score(y_test, pred)*100)
@@ -197,8 +197,8 @@ def evaluate_model_performance(project,model_name):
 # def method_accuracy():
     # lime local model
     # randomly select 100 instances in y_test 
-    test_indexes = np.randint(0,2,100).astype(bool)
-    test_instances = y_test[test_indexes]
+    # test_indexes = np.randint(0,2,100).astype(bool)
+    # test_instances = y_test[test_indexes]
     # for each instance, generate explanation
     #metrics.accuracy_score(y_test,)
 
@@ -239,7 +239,13 @@ def generate_explanations(explainer,X_test,y_test, global_model):
             explanation['selected_feature_indices'] = selected_feature_indices #10 most important feature indexes
             explanation['name'] = row_index
             explanations.append(explanation)
-        #elif isinstance(explainer, PyExplainer)
+        elif isinstance(explainer, PyExplainer):
+            pyExplanation = explainer.explain(X_explain,
+                                   y_explain,
+                                   search_function = 'CrossoverInterpolation')
+            pyExplanation['name'] = row_index
+            pyExplanation['local_model'] = pyExplanation['local_rulefit_model']
+            del pyExplanation['local_rulefit_model']
         
         return explanations
 
