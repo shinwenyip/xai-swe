@@ -90,7 +90,7 @@ class Project:
             global_model.fit(self.X_train_rs, self.y_train_rs)
         elif model_name == 'LR':
             global_model = LogisticRegression(random_state=self.random_state, n_jobs=24)
-            global_model.fit(self.X_train, self.y_train_rs)
+            global_model.fit(self.X_train_rs, self.y_train_rs)
             # global_model.fit(self.X_trainStd, self.y_train_rs)
         elif model_name == 'BRCG':
             # Instantiate BRCG with small complexity penalty and large beam search width

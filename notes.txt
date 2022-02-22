@@ -38,6 +38,20 @@ if defect_prob: return pred, defect_prob else return pred
 how each model explains
 model = ant.models[model_name]
     
+pyexp:
+'synthetic_data', 'synthetic_predictions', 'X_explain', 'y_explain', 'indep', 'dep', 'top_k_positive_rules', 'top_k_negative_rule,
+
+
 todo:
 explanation for CEM, LIME, SHAP, PyExplainer
 metrics compare for CEM,LIME,SHAP,PyExplainer - using IBM metrics + metrics we used
+
+qn:
+how to find base values for lime explanation
+
+index   rule  type      coef support  importance  is_satisfy_instance  
+
+explainers: [SHAP, LIME, PyExplainer, CEM]
+models = [LR, SVM, NB]
+1. train data on LR, SVM, NB
+2. for each trained models, generate explanations
