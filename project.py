@@ -5,19 +5,18 @@ from imblearn.over_sampling import SMOTE
 from sklearn import svm, metrics
 from sklearn.linear_model import LogisticRegression
 from pyexplainer.pyexplainer_pyexplainer import *
-from lime.lime.lime_tabular import LimeTabularExplainer
-import seaborn as sns
+from lime.lime_tabular import LimeTabularExplainer
 import matplotlib.pyplot as plt
 from collections import Counter
 from aix360.algorithms.rbm import FeatureBinarizer,BooleanRuleCG,LogisticRuleRegression
 # for neural networks
-import tensorflow as tf
+# import tensorflow as tf
 import keras.models as km
 from keras.layers import Dense
-from aix360.algorithms.contrastive import CEMExplainer, KerasClassifier 
-from aix360.algorithms.protodash import ProtodashExplainer
+# from aix360.algorithms.contrastive import CEMExplainer, KerasClassifier 
+# from aix360.algorithms.protodash import ProtodashExplainer
 # from keras.models import Sequential, Model, load_model, model_from_json
-tf.compat.v1.disable_eager_execution()
+# tf.compat.v1.disable_eager_execution()
 
 class Project:
     
@@ -99,12 +98,12 @@ class Project:
         elif model_name == 'LogRR':
             global_model = LogisticRuleRegression(lambda0=1e-3, lambda1=1e-3, useOrd=True)
             global_model.fit(self.X_train_bin, self.y_train_rs, self.X_trainStd)
-        elif model_name == 'NN':
-            global_model = nn_small()
-            global_model.compile(loss=fn, optimizer='adam', metrics=['accuracy'])
-            global_model.summary()
-            global_model.fit(self.X_trainNorm, self.y_train_rs,batch_size=128, epochs=500, verbose=1, shuffle=False)
-            global_model.save_weights(self.name+'_'+ '_nnsmall.h5') # to load later: global_model.load_weights(filename)
+        # elif model_name == 'NN':
+        #     global_model = nn_small()
+        #     global_model.compile(loss=fn, optimizer='adam', metrics=['accuracy'])
+        #     global_model.summary()
+        #     global_model.fit(self.X_trainNorm, self.y_train_rs,batch_size=128, epochs=500, verbose=1, shuffle=False)
+        #     global_model.save_weights(self.name+'_'+ '_nnsmall.h5') # to load later: global_model.load_weights(filename)
         # add model to list of models in this project
         self.models[model_name] = global_model
 
@@ -113,18 +112,18 @@ class Project:
 
         return global_model
 
-def nn_small():
-    # Set random seeds for repeatability
-    np.random.seed(1) 
-    tf.random.set_seed(1)
-    model = km.Sequential()
-    model.add(Dense(10, input_dim=20, kernel_initializer='normal', activation='relu'))
-    model.add(Dense(2, kernel_initializer='normal'))    
-    return model 
+# def nn_small():
+#     # Set random seeds for repeatability
+#     np.random.seed(1) 
+#     tf.random.set_seed(1)
+#     model = km.Sequential()
+#     model.add(Dense(10, input_dim=20, kernel_initializer='normal', activation='relu'))
+#     model.add(Dense(2, kernel_initializer='normal'))    
+#     return model 
 
 # loss function
-def fn(correct, predicted):
-    return tf.nn.softmax_cross_entropy_with_logits(labels=correct, logits=predicted)
+# def fn(correct, predicted):
+#     return tf.nn.softmax_cross_entropy_with_logits(labels=correct, logits=predicted)
 
 def normalise_data(X_train, X_test):
     Z = np.vstack((X_train, X_test))

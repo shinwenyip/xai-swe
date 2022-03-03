@@ -5,7 +5,7 @@ from imblearn.over_sampling import SMOTE
 from sklearn import svm, metrics
 from sklearn.linear_model import LogisticRegression
 from pyexplainer.pyexplainer_pyexplainer import *
-from lime.lime.lime_tabular import LimeTabularExplainer
+from lime.lime_tabular import LimeTabularExplainer
 import seaborn as sns
 import matplotlib.pyplot as plt
 from collections import Counter

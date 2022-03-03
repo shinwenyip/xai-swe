@@ -55,3 +55,22 @@ explainers: [SHAP, LIME, PyExplainer, CEM]
 models = [LR, SVM, NB]
 1. train data on LR, SVM, NB
 2. for each trained models, generate explanations
+
+commands:
+conda env export --no-builds --from-history -f env.yml
+
+ResolvePackageNotFound: 
+  - m2w64-gcc-libs=5.3.0
+  - wincertstore=0.2
+  - winpty=0.4.3
+  - vc=14.2
+  - intel-openmp=2022.0.0
+  - m2w64-gcc-libs-core=5.3.0
+  - icc_rt=2019.0.0
+  - msys2-conda-epoch=20160418
+  - vs2015_runtime=14.29.30037
+  - ucrt=10.0.20348.0
+  - m2w64-gcc-libgfortran=5.3.0
+  - m2w64-libwinpthread-git=5.0.0.4634.697f757
+  - m2w64-gmp=6.1.0
+  - pywinpty=1.1.6
