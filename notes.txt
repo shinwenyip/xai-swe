@@ -53,7 +53,7 @@ index   rule  type      coef support  importance  is_satisfy_instance
 
 explainers: [SHAP, LIME, PyExplainer, CEM]
 models = [LR, SVM, NB]
-1. train data on LR, SVM, NB
+1. train data on LR, SVM, KNN, NB
 2. for each trained models, generate explanations
 
 commands:

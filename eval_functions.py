@@ -186,6 +186,13 @@ def evaluate_model_performance(project,model_name):
     elif  model_name == 'SVM':
         pred = model.predict(project.X_test)
         print(model_name + " Training accuracy(in %):", metrics.accuracy_score(project.y_train_rs, model.predict(project.X_train_rs))*100)
+    elif model_name == 'KNN':
+        pred = model.predict(project.X_test)
+        print(model_name + " Training accuracy(in %):", metrics.accuracy_score(project.y_train, model.predict(project.X_train))*100)
+    elif model_name == 'NB':
+        pred = model.predict(project.X_test)
+        print(model_name + " Training accuracy(in %):", metrics.accuracy_score(project.y_train, model.predict(project.X_train))*100)
+        
     print(model_name + " Test accuracy(in %):", metrics.accuracy_score(y_test, pred)*100)
     print(model_name +" precision(in %):", metrics.precision_score(y_test, pred)*100)
     print(model_name +" recall(in %):", metrics.recall_score(y_test, pred)*100)

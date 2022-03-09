@@ -3,7 +3,9 @@ import pandas as pd
 import numpy as np
 from imblearn.over_sampling import SMOTE
 from sklearn import svm, metrics
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import GaussianNB
 from pyexplainer.pyexplainer_pyexplainer import *
 from lime.lime_tabular import LimeTabularExplainer
 import matplotlib.pyplot as plt
@@ -98,6 +100,12 @@ class Project:
         elif model_name == 'LogRR':
             global_model = LogisticRuleRegression(lambda0=1e-3, lambda1=1e-3, useOrd=True)
             global_model.fit(self.X_train_bin, self.y_train_rs, self.X_trainStd)
+        elif model_name == 'KNN':
+            global_model = KNeighborsClassifier()
+            global_model.fit(self.X_train, self.y_train)
+        elif model_name == 'NB':
+            global_model = GaussianNB()
+            global_model.fit(self.X_train,self.y_train)
         # elif model_name == 'NN':
         #     global_model = nn_small()
         #     global_model.compile(loss=fn, optimizer='adam', metrics=['accuracy'])
