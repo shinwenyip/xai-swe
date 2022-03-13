@@ -74,3 +74,13 @@ ResolvePackageNotFound:
   - m2w64-libwinpthread-git=5.0.0.4634.697f757
   - m2w64-gmp=6.1.0
   - pywinpty=1.1.6
+
+
+PyExplainer explanation
+explanation = pyExp.explain(X_explain,y_explain, search_function='crossoverinterpolation',random_state=0,reuse_local_model=True)
+# returns a dictionary with keys: 
+- dict_keys(['synthetic_data', 'synthetic_predictions', 'X_explain', 'y_explain', 'indep', 'dep', 'top_k_positive_rules', 'top_k_negative_rules', 'local_rulefit_model'])
+X_explain is the features of the instance of interest
+y_explain is the prediction of the instance of interest
+indep is the list of independent variable names (feature names)
+dep is the dependent variable name (name of prediction column)
