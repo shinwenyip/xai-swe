@@ -84,3 +84,12 @@ X_explain is the features of the instance of interest
 y_explain is the prediction of the instance of interest
 indep is the list of independent variable names (feature names)
 dep is the dependent variable name (name of prediction column)
+
+for uniqueness metric in pyExplainer paper, 
+for each instance of interest:
+  method extracts the top 1 rule for lime and pyexplanation (for pyexplanation top rule is split into multiple propositions)
+  uniqueness is measured by: 
+    total unique rules / total rules 
+  # total rules would be more for pyexplainer as each instance explanation have multiple propositions
+if we use this metric on shap, 
+  do we extract the top (feature,importance) pair and find percentage uniqueness?
