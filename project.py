@@ -120,6 +120,22 @@ class Project:
 
         return global_model
 
+    def sample(quantity, X_test,y_test):
+        test_data = X_test.copy()
+        test_data['defect'] = y_test
+        test_data['freq'] = 1./test_data.groupby('defect')['defect'].transform('count')
+        # sampled data with half clean and half defective
+        sampled_data = test_data.sample(quantity,weights = test_data.freq, random_state=1, replace=False)
+        x_cols = sampled_data.columns[:-2].values
+        test_data_x = sampled_data[x_cols]
+        test_data_y = sampled_data['defect']
+        return test_data_x, test_data_y, sampled_data
+         
+    def get_sampled_data(self):
+        self.test_data_x, self.test_data_y, self.sampled_data = self.sample(100,self.X_test,self.y_test)
+        return self.test_data_x, self.test_data_y, self.sampled_data
+    
+
 # def nn_small():
 #     # Set random seeds for repeatability
 #     np.random.seed(1) 
