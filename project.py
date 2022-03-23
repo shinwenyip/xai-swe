@@ -120,7 +120,7 @@ class Project:
 
         return global_model
 
-    def sample(quantity, X_test,y_test):
+    def sample(self,quantity, X_test,y_test):
         test_data = X_test.copy()
         test_data['defect'] = y_test
         test_data['freq'] = 1./test_data.groupby('defect')['defect'].transform('count')
