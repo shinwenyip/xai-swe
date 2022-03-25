@@ -3,7 +3,7 @@ from aix360.metrics import *
 from shap import KernelExplainer
 from lime.lime_tabular import LimeTabularExplainer
 from pyexplainer.pyexplainer_pyexplainer import *
-
+import re
 
 def generate_explanations(explainer,X_test,y_test, global_model):
     explanations = []
@@ -135,6 +135,15 @@ def show_model_performance(global_preds,lime_preds,py_preds,shap_preds):
     print('mac: ',metrics.matthews_corrcoef(np.array(global_preds)>0.5,np.array(shap_preds)>0.5))
     print('avg probability diff: ',avg_proba_diff(global_preds, shap_preds))
 
+
+def get_features_from_rules(rules):
+    features = []
+    for rule in rules['rule']:
+        rule_feats = re.findall('[a-zA-Z]+',rule)
+        features = features + rule_feats
+    # print(features)
+    return set(features)
+
 def internal_fidelity(global_model, X_test, y_test, lime_explanations, py_explanations, shap_explanations,):
     """
     shows how well the explanation reflects the decision making process of original task model 
@@ -169,8 +178,7 @@ def internal_fidelity(global_model, X_test, y_test, lime_explanations, py_explan
                 exp_importances = [np.abs(rules.as_list()[i][1]) for i in range(len(rules.as_list()))]
                 top_importance_boundary = np.quantile(exp_importances, .75)
 
-                count_match = len(set(exp_feature_indices) & set(true_features_indices))
-                recall = count_match/len(true_features_indices)
+                recall = len(set(exp_feature_indices) & set(true_features_indices))/len(true_features_indices)
                 instance['method'] = 'LIME'
                 instance['recall'] = recall
                 # instance['precision'] = 
@@ -184,13 +192,20 @@ def internal_fidelity(global_model, X_test, y_test, lime_explanations, py_explan
 
             elif (exp == py_explanations):
                 # FIXME to test fidelity of the explanation "features", do I use the features extracted from top important rules or filter individual features sorted according to importance values 
-                rules = exp_instance['rule']
-                exp_feature_indices = exp_instance['selected_feature_indices']
-                exp_importances = [np.abs(rules.as_list()[i][1]) for i in range(len(rules.as_list()))]
-                top_importance_boundary = np.quantile(exp_importances, .75)
+                
+                # method 1 - use features extracted from top 10 rules
+                top_rules = exp_instance['top_k_positive_rules'].head(9)
+                top_features_from_rules = get_features_from_rules(top_rules)
+                exp_feature_indices = [ i for i in range(len(features)) if features[i] in top_features_from_rules ]
 
-                count_match = len(set(exp_feature_indices) & set(true_features_indices))
-                recall = count_match/len(true_features_indices)
+                # method 2 - use indivdual feaatures and their assigned importance value (not top "features" in explanation)
+                # exp_features = exp_instance['local_model'].get_rules().head(20).sort_values(by='importance',ascending=False)
+                # exp_feature_indices = exp_features.index[:10]
+
+                if (len(exp_feature_indices)<10): # set len of top features to min of exp features and top features
+                    true_features_indices = true_features_indices[:,len(exp_feature_indices)]
+
+                recall = len(set(exp_feature_indices) & set(true_features_indices))/len(true_features_indices)
                 instance['method'] = 'PyExplainer'
                 instance['recall'] = recall
 
@@ -202,7 +217,7 @@ def internal_fidelity(global_model, X_test, y_test, lime_explanations, py_explan
                     true_features_indices = true_features_indices[:,len(exp_feature_indices)]
 
                 recall = len(set(exp_feature_indices) & set(true_features_indices))/len(true_features_indices)
-                top_importance_boundary = np.quantile(exp_importances, .75)
+                # top_importance_boundary = np.quantile(exp_importances, .75)
 
                 instance['method'] = 'SHAP'
                 instance['recall'] = recall
