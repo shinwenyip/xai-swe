@@ -1,4 +1,4 @@
-from sklearn import metrics
+from sklearn import metrics, tree
 from aix360.metrics import *
 from shap import KernelExplainer
 from lime.lime_tabular import LimeTabularExplainer
@@ -26,7 +26,7 @@ def generate_explanations(explainer,X_test,y_test, global_model):
             explanation['name'] = row_index
 
         elif isinstance(explainer, PyExplainer):
-            explanation = explainer.explain(X_explain, y_explain, search_function ='CrossoverInterpolation')
+            explanation = explainer.explain(X_explain, y_explain, search_function ='CrossoverInterpolation',)
             explanation['name'] = row_index
             explanation['local_model'] = explanation['local_rulefit_model']
             del explanation['local_rulefit_model']
@@ -44,6 +44,30 @@ def generate_explanations(explainer,X_test,y_test, global_model):
     return explanations 
 
 def get_explanations(project_name,explain_method,model_name,X_train,y_train,global_model,random_state=1,class_label =['clean','defect'] ):
+    """
+    lime explanation
+        name
+        rule: (lime Explanation object)
+        synthetic_instance_for_global_model: original generated synthetic instances - according to gaussian sampling around mean of feature data; shape=(num_samples,original num of features)
+        synthetic_instance_for_local_model: synthetic instances with selected discretised features (thus binary feature values) for training local model; shape=(num_samples,num_features selected)
+        local_model: local surrogate model (Ridge Regressor)
+        selected_feature_indices: index of selected features by "feature selection" method
+    
+    py explanation
+        name
+        synthetic_data: generated synthetic instances using crossover and interpolation
+        synthetic_predictions: corresponding predictions by global task model
+        X_explain, y_explain: Instance to be explained 
+        indep: independent variables(features)
+        dep: target variable 
+        top_k_positive_rules
+        top_k_negative_rules
+        local_model: local surrogate model (RuleFit model)
+
+    shap explanation
+        name
+        shap_values
+    """
     # explain_method - str: 'lime','pyExp', 'shap'
     filepath = 'explanations/' + project_name + '_'+ model_name +'_'+explain_method+'_explanations' +'.pkl'
 
@@ -66,7 +90,30 @@ def get_explanations(project_name,explain_method,model_name,X_train,y_train,glob
 
     return explainer,explanations
 
-# Below are functions for evaluation metrics
+# Below are functions for evaluation metrics - given a test set test_x,test_y, 3 explanations each (100)
+
+def prediction_fidelity(global_preds,lime_preds,py_preds,shap_preds):
+    """
+    shows level of (dis)agreement between task model predictions and surrogate model predictions
+    """
+    print('lime')
+    print('precision: ', metrics.precision_score(np.array(global_preds)>0.5,np.array(lime_preds)>0.5))
+    print('recall: ',metrics.recall_score(np.array(global_preds)>0.5,np.array(lime_preds)>0.5))
+    print('mcc: ',metrics.matthews_corrcoef(np.array(global_preds)>0.5,np.array(lime_preds)>0.5))
+    # print('avg probability diff: ',avg_proba_diff(global_preds, lime_preds))
+
+    print('pyExplainer')
+    print('precision: ',metrics.precision_score(np.array(global_preds)>0.5,np.array(py_preds)>0.5))
+    print('recall: ',metrics.recall_score(np.array(global_preds)>0.5,np.array(py_preds)>0.5))
+    print('mcc: ',metrics.matthews_corrcoef(np.array(global_preds)>0.5,np.array(py_preds)>0.5))
+    # print('avg probability diff: ',avg_proba_diff(global_preds, py_preds))
+
+    print('shap')
+    print('precision: ',metrics.precision_score(np.array(global_preds)>0.5,np.array(shap_preds)>0.5))
+    print('recall: ',metrics.recall_score(np.array(global_preds)>0.5,np.array(shap_preds)>0.5))
+    print('mcc: ',metrics.matthews_corrcoef(np.array(global_preds)>0.5,np.array(shap_preds)>0.5))
+    # print('avg probability diff: ',avg_proba_diff(global_preds, shap_preds))
+
 
 def show_model_performance(global_preds,lime_preds,py_preds,shap_preds):
     print('lime')
@@ -87,6 +134,86 @@ def show_model_performance(global_preds,lime_preds,py_preds,shap_preds):
     print('recall: ',metrics.recall_score(np.array(global_preds)>0.5,np.array(shap_preds)>0.5))
     print('mac: ',metrics.matthews_corrcoef(np.array(global_preds)>0.5,np.array(shap_preds)>0.5))
     print('avg probability diff: ',avg_proba_diff(global_preds, shap_preds))
+
+def internal_fidelity(global_model, X_test, y_test, lime_explanations, py_explanations, shap_explanations,):
+    """
+    shows how well the explanation reflects the decision making process of original task model 
+    - assess for each explanation
+    global_model: interpretable task model (Logistic Regressor)
+    return: (for each test instance; for each xai method) 
+        - recall: #true_features.intersection(exp_features)/#true_features
+    """
+    # have 1 global interpretable model ()
+    # for each instance in (100) test instances, we calculate recall and precision measures using 
+    # true features(from global model) and explanation features
+    # if (global_model==None): # use decision tree
+    #     global_model = tree.DecisionTreeClassifier(random_state=1)
+    #     global_model.fit(X_test,y_test)
+    features = X_test.columns
+    instances = []
+
+    exp_list = [lime_explanations, py_explanations, shap_explanations ]
+    true_f = [ np.abs(x) for x in global_model.coef_[0]]
+    # feature_importances = pd.Series(data=true_f,index=X_test.columns)
+    feature_importances = pd.Series(data=true_f)
+    feature_importances = feature_importances.sort_values(ascending=False)
+
+    true_features_indices = feature_importances[:10].index
+
+    for exp in exp_list: 
+        for exp_instance in exp: # 100 instances
+            instance = {}
+            if (exp == lime_explanations):
+                rules = exp_instance['rule']
+                exp_feature_indices = exp_instance['selected_feature_indices']
+                exp_importances = [np.abs(rules.as_list()[i][1]) for i in range(len(rules.as_list()))]
+                top_importance_boundary = np.quantile(exp_importances, .75)
+
+                count_match = len(set(exp_feature_indices) & set(true_features_indices))
+                recall = count_match/len(true_features_indices)
+                instance['method'] = 'LIME'
+                instance['recall'] = recall
+                # instance['precision'] = 
+                # top_relevant_features = []
+                # precision = 
+                # for i,imp in rules.as_map()[1]:
+                #     if imp < top_importance_boundary:
+                #         break
+                #     top_relevant_features.append((i,imp))
+                # most relevant features (those where weights are in the top quartile) 
+
+            elif (exp == py_explanations):
+                # FIXME to test fidelity of the explanation "features", do I use the features extracted from top important rules or filter individual features sorted according to importance values 
+                rules = exp_instance['rule']
+                exp_feature_indices = exp_instance['selected_feature_indices']
+                exp_importances = [np.abs(rules.as_list()[i][1]) for i in range(len(rules.as_list()))]
+                top_importance_boundary = np.quantile(exp_importances, .75)
+
+                count_match = len(set(exp_feature_indices) & set(true_features_indices))
+                recall = count_match/len(true_features_indices)
+                instance['method'] = 'PyExplainer'
+                instance['recall'] = recall
+
+            elif (exp == shap_explanations):
+                exp_feature_indices = pd.Series(exp_instance['shap_values'])
+                exp_feature_indices = exp_feature_indices.sort_values(ascending=False).index
+
+                if (len(exp_feature_indices)<10):
+                    true_features_indices = true_features_indices[:,len(exp_feature_indices)]
+
+                recall = len(set(exp_feature_indices) & set(true_features_indices))/len(true_features_indices)
+                top_importance_boundary = np.quantile(exp_importances, .75)
+
+                instance['method'] = 'SHAP'
+                instance['recall'] = recall
+
+
+
+
+
+
+
+
 
 # ibm aix360 metrics - faithfulness and monotonicity
 def faithfulness(model, x, coefs, base):

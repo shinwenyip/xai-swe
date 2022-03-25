@@ -121,6 +121,10 @@ class Project:
         return global_model
 
     def sample(self,quantity, X_test,y_test):
+        """
+        Takes dataset as input and return [quantity] number of sample instances with 50% defective and 50% clean
+        Returns: (test_data_x, test_data_y, )
+        """
         test_data = X_test.copy()
         test_data['defect'] = y_test
         test_data['freq'] = 1./test_data.groupby('defect')['defect'].transform('count')
