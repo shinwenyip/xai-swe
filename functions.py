@@ -296,7 +296,7 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
         #find indexs of coefficients in decreasing order of value
         # ar = np.argsort(-coefs)  #argsort returns indexes of values sorted in increasing order; so do it for negated array
         pred_probs = np.zeros(x.shape[0])
-        for ind in np.nditer(indices):
+        for ind in np.nditer(np.array(indices)):
             x_copy = x.copy()
             x_copy[ind] = base[ind]
             x_copy_pr = model.predict_proba(x_copy.reshape(1,-1))
@@ -315,7 +315,7 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
     for i in range(len(X_test)):
         # calculate for lime
         lime_exp = lime_explanations[i]['rule']
-        sorted_indices = [np.abs(lime_exp.as_map()[1][i][0]) for i in range(len(lime_exp.as_map()[1]))]
+        sorted_indices = [np.abs(lime_exp.as_map()[1][i][0]) for i in range(len(lime_exp.as_map()[1]))] # sorted in order of decending importances
         coef_map = sorted(lime_exp.as_map()[1],key=itemgetter(0))
         x = X_test.iloc[i].values # data row type ndarray
         coefs = [np.abs(coef_map[i][1]) for i in range(len(coef_map))] # coefs for top 10 features (sorted by index)
@@ -358,7 +358,75 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
     return result
 
 def monotonicity(global_model, X_test, lime_explanations, py_explanations, shap_explanations):
-    pass
+    features = list(X_test.columns)
+
+    def monotonicity_score(model,x,coefs,base,indices):
+        """
+        coefs: importance vals sorted according to original index
+        indices: sorted indices according to importance(descending)
+        """
+        ar = np.array(indices[::-1])
+        # original predicted class of the instance
+        pred_class = model.predict(x.reshape(1,-1))[0].astype(int)
+        x_copy = base.copy()
+        pred_probs = np.zeros(x.shape[0])
+        for ind in np.nditer(ar):
+            x_copy[ind] = x[ind]
+            x_copy_pr = model.predict_proba(x_copy.reshape(1,-1))
+            pred_probs[ind] = x_copy_pr[0][pred_class]
+
+        pred_probs = pred_probs[pred_probs!=0]
+        return np.all(np.diff(pred_probs[ar]) >= 0)
+
+    result = []
+    lime_monotonicity = []
+    shap_monotonicity = []
+    py_monotonicity = []
+
+    for i in range(len(X_test)):
+        # calculate for lime
+        lime_exp = lime_explanations[i]['rule']
+        sorted_indices = [np.abs(lime_exp.as_map()[1][i][0]) for i in range(len(lime_exp.as_map()[1]))] # sorted in order of decending importances
+        coef_map = sorted(lime_exp.as_map()[1],key=itemgetter(0))
+        x = X_test.iloc[i].values # data row type ndarray
+        coefs = [np.abs(coef_map[i][1]) for i in range(len(coef_map))] # coefs for top 10 features (sorted by index)
+        base = np.zeros(x.shape[0]) 
+        mlime = monotonicity_score(global_model,x,coefs,base,sorted_indices)
+        lime_monotonicity.append(mlime)
+
+        # calculate for shap
+        coefs_shap = np.array(shap_explanations[i]['shap_values'])
+        count = np.count_nonzero(coefs_shap)
+        sorted_indices = np.argsort(-coefs_shap)[:count]
+        mshap = monotonicity_score(global_model,x,coefs_shap,base,sorted_indices)
+        shap_monotonicity.append(mshap)
+
+        # calculate for pyExplainer
+        x_copy = base.copy()
+        pred_probs = []
+        pred_class = global_model.predict(x.reshape(1,-1))[0].astype(int)
+        top_rules = py_explanations[i]['top_k_positive_rules'].head(9)
+        coefs_pyexp = top_rules['importance'][::-1] # top 10 importance values assigned to rules -ascending order
+        rules = top_rules['rule'][::-1] # ascending order
+
+        # iterate rules ascending order -add more important one each round
+        for rule in rules:
+            boundary_values = feature_boundary_values(rule) # [(feature,value)]
+            indices = [features.index(c[0]) for c in boundary_values]
+            for i,ind in enumerate(indices):
+                x_copy[ind] = boundary_values[i][1]
+            x_copy_pr = global_model.predict_proba(x_copy.reshape(1,-1))
+            pred_probs.append(x_copy_pr[0][pred_class])
+        mpy = np.all(np.diff(pred_probs) >= 0)
+        py_monotonicity.append(mpy)
+
+    result.append({ 'method':'LIME','total_monotonicity':sum(lime_monotonicity),'monotonicity_scores': np.array(lime_monotonicity).astype(int)})
+    result.append({ 'method':'SHAP','total_monotonicity':sum(shap_monotonicity),'monotonicity_scores':np.array(shap_monotonicity).astype(int)})
+    result.append({ 'method':'pyExplainer','total_monotonicity':sum(py_monotonicity),'monotonicity_scores':np.array(py_monotonicity).astype(int)})
+    
+    return result
+
+
 def uniqueness():
     pass
 def similarity():
