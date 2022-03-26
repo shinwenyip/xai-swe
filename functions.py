@@ -91,6 +91,54 @@ def get_explanations(project_name,explain_method,model_name,X_train,y_train,glob
 
     return explainer,explanations
 
+# util functions for evaluations
+
+def get_features_from_rules(rules):
+    features = []
+    for rule in rules['rule']:
+        rule_feats = re.findall('[a-zA-Z]+',rule)
+        features = features + rule_feats
+    # print(features)
+    return set(features)
+
+def feature_boundary_values(rule):
+    """
+    input : rfc > 36.65500068664551 & loc > -1015.6700439453125 & lcom > -815.7749938964844
+    return list of tuples (feature, value)
+    """
+    boundaries = []
+    props = rule.split(" & ")
+
+    for prop in props:
+        sep = prop.split(" ")
+        if "=" in sep[1]:
+            value = float(sep[2])
+        elif sep[1] == '>':
+            value = np.ceil(float(sep[2]))
+        elif sep[1] == '<':
+            value = np.floor(float(sep[2]))
+        boundaries.append((sep[0],value))
+
+    return boundaries
+
+def feature_outside_boundary_values(rule):
+    """
+    input : rfc > 36.65500068664551 & loc > -1015.6700439453125 & lcom > -815.7749938964844
+    return list of tuples (feature, value)
+    """
+    values = []
+    props = rule.split(" & ")
+
+    for prop in props:
+        sep = prop.split(" ")
+        if '>' in sep[1]:
+            value = float(sep[2]) - 1
+        elif '<' in sep[1]:
+            value = float(sep[2]) + 1
+
+        values.append((sep[0],value))
+    return values
+
 # Below are functions for evaluation metrics - given a test set test_x,test_y, 3 explanations each (100)
 
 def prediction_fidelity(global_preds,lime_preds,py_preds,shap_preds):
@@ -144,15 +192,6 @@ def show_model_performance(global_preds,lime_preds,py_preds,shap_preds):
     print('recall: ',metrics.recall_score(np.array(global_preds)>0.5,np.array(shap_preds)>0.5))
     print('mac: ',metrics.matthews_corrcoef(np.array(global_preds)>0.5,np.array(shap_preds)>0.5))
     print('avg probability diff: ',avg_proba_diff(global_preds, shap_preds))
-
-
-def get_features_from_rules(rules):
-    features = []
-    for rule in rules['rule']:
-        rule_feats = re.findall('[a-zA-Z]+',rule)
-        features = features + rule_feats
-    # print(features)
-    return set(features)
 
 def internal_fidelity(global_model, X_test, y_test, lime_explanations, py_explanations, shap_explanations,):
     """
@@ -209,7 +248,7 @@ def internal_fidelity(global_model, X_test, y_test, lime_explanations, py_explan
                 # FIXME to test fidelity of the explanation "features", do I use the features extracted from top important rules or filter individual features sorted according to importance values 
                 
                 # method 1 - use features extracted from top 10 rules
-                top_rules = exp_instance['top_k_positive_rules'].head(9)
+                top_rules = exp_instance['top_k_positive_rules'].head(10)
                 top_features_from_rules = get_features_from_rules(top_rules)
                 exp_feature_indices = [ i for i in range(len(features)) if features[i] in top_features_from_rules ]
 
@@ -240,44 +279,6 @@ def internal_fidelity(global_model, X_test, y_test, lime_explanations, py_explan
         result.append(method_res)
 
     return result
-
-def feature_boundary_values(rule):
-    """
-    input : rfc > 36.65500068664551 & loc > -1015.6700439453125 & lcom > -815.7749938964844
-    return list of tuples (feature, value)
-    """
-    boundaries = []
-    props = rule.split(" & ")
-
-    for prop in props:
-        sep = prop.split(" ")
-        if "=" in sep[1]:
-            value = float(sep[2])
-        elif sep[1] == '>':
-            value = np.ceil(float(sep[2]))
-        elif sep[1] == '<':
-            value = np.floor(float(sep[2]))
-        boundaries.append((sep[0],value))
-
-    return boundaries
-
-def feature_outside_boundary_values(rule):
-    """
-    input : rfc > 36.65500068664551 & loc > -1015.6700439453125 & lcom > -815.7749938964844
-    return list of tuples (feature, value)
-    """
-    values = []
-    props = rule.split(" & ")
-
-    for prop in props:
-        sep = prop.split(" ")
-        if '>' in sep[1]:
-            value = float(sep[2]) - 1
-        elif '<' in sep[1]:
-            value = float(sep[2]) + 1
-
-        values.append((sep[0],value))
-    return values
 
 def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_explanations):
     """
@@ -333,7 +334,7 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
         # calculate for pyExplainer
         pred_probs = []
         pred_class = global_model.predict(x.reshape(1,-1))[0].astype(int)
-        top_rules = py_explanations[i]['top_k_positive_rules'].head(9)
+        top_rules = py_explanations[i]['top_k_positive_rules'].head(10)
         coefs_pyexp = top_rules['importance'] # top 10 importance values
         rules = top_rules['rule']
         for rule in rules:
@@ -405,7 +406,7 @@ def monotonicity(global_model, X_test, lime_explanations, py_explanations, shap_
         x_copy = base.copy()
         pred_probs = []
         pred_class = global_model.predict(x.reshape(1,-1))[0].astype(int)
-        top_rules = py_explanations[i]['top_k_positive_rules'].head(9)
+        top_rules = py_explanations[i]['top_k_positive_rules'].head(10)
         coefs_pyexp = top_rules['importance'][::-1] # top 10 importance values assigned to rules -ascending order
         rules = top_rules['rule'][::-1] # ascending order
 
@@ -427,8 +428,41 @@ def monotonicity(global_model, X_test, lime_explanations, py_explanations, shap_
     return result
 
 
-def uniqueness():
-    pass
+def uniqueness(X_test, lime_explanations, py_explanations, shap_explanations):
+    """
+    returns percentage uniqueness of top 1 most important factor in each explanation 
+    """
+    features = list(X_test.columns)
+    result = []
+
+    lime_top_exps = []
+    shap_top_exps = []
+    py_top_exps = []
+    for i in range(len(X_test)):
+        lime_exp = lime_explanations[i]['rule']
+        top_lime = lime_exp.as_list()[0][0] # ex: loc > 543.00
+        lime_top_exps.append(top_lime)
+
+        py_exp = py_explanations[i]['top_k_positive_rules']['rule'][0].strip()
+        top_py = py_exp.split(" & ") # ['loc > 19', 'wmc > 9']
+        py_top_exps = py_top_exps + top_py
+
+        shap_exp = shap_explanations[i]['shap_values']
+        indices = np.argsort(-shap_exp)
+        shap_top = features[indices[0]]
+        shap_top_exps.append(shap_top)
+
+    #uniqueness in percentage
+    lime_uniqueness = (len(set(lime_top_exps))/len(lime_top_exps))*100
+    shap_uniqueness = (len(set(shap_top_exps))/len(shap_top_exps))*100
+    py_uniqueness = (len(set(py_top_exps))/len(py_top_exps))*100
+
+    result.append({ 'method':'LIME','lime_uniqueness': lime_uniqueness})
+    result.append({ 'method':'SHAP','shap_uniqueness': shap_uniqueness})
+    result.append({ 'method':'pyExplainer','py_uniqueness': py_uniqueness})
+
+    return result
+
 def similarity():
     pass
 
