@@ -5,6 +5,7 @@ from lime.lime_tabular import LimeTabularExplainer
 from pyexplainer.pyexplainer_pyexplainer import *
 import re
 from operator import itemgetter
+from sklearn.metrics.pairwise import  euclidean_distances
 
 def generate_explanations(explainer,X_test,y_test, global_model):
     explanations = []
@@ -44,7 +45,7 @@ def generate_explanations(explainer,X_test,y_test, global_model):
         explanations.append(explanation)
     return explanations 
 
-def get_explanations(project_name,explain_method,model_name,X_train,y_train,global_model,random_state=1,class_label =['clean','defect'] ):
+def get_explanations(project,explain_method,model_name,X_train,y_train,global_model,random_state=1,class_label =['clean','defect'] ):
     """
     lime explanation
         name
@@ -70,7 +71,7 @@ def get_explanations(project_name,explain_method,model_name,X_train,y_train,glob
         shap_values
     """
     # explain_method - str: 'lime','pyExp', 'shap'
-    filepath = 'explanations/' + project_name + '_'+ model_name +'_'+explain_method+'_explanations' +'.pkl'
+    filepath = 'explanations/' + project.name + '_'+ model_name +'_'+explain_method+'_explanations' +'.pkl'
 
     if explain_method == 'lime':
         explainer = LimeTabularExplainer(X_train.values, feature_names=X_train.columns, 
@@ -86,6 +87,8 @@ def get_explanations(project_name,explain_method,model_name,X_train,y_train,glob
     if os.path.exists(filepath):
         explanations = pickle.load(open(filepath,'rb'))
     else:
+        print(filepath)
+        test_data_x,test_data_y,_= project.get_sampled_data()
         explanations = generate_explanations(explainer,test_data_x,test_data_y,global_model)
         pickle.dump(explanations,open(filepath,'wb'))
 
@@ -164,7 +167,7 @@ def prediction_fidelity(global_preds,lime_preds,py_preds,shap_preds):
     print(py_res)
 
     shap_res = {}
-    shap_res['method'] = 'lime'
+    shap_res['method'] = 'shap'
     shap_res['mcc'] = metrics.matthews_corrcoef(np.array(global_preds)>0.5,np.array(shap_preds)>0.5)
     shap_res['recall'] = metrics.recall_score(np.array(global_preds)>0.5,np.array(shap_preds)>0.5)
     shap_res['precision'] = metrics.precision_score(np.array(global_preds)>0.5,np.array(shap_preds)>0.5)
@@ -338,7 +341,7 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
         coefs_pyexp = top_rules['importance'] # top 10 importance values
         rules = top_rules['rule']
         for rule in rules:
-            x_copy = x.copy()
+            x_copy = x.copy() 
             outside_range_values = feature_outside_boundary_values(rule)
             indices = [features.index(c[0]) for c in outside_range_values]
             for i,ind in enumerate(indices):
@@ -457,119 +460,158 @@ def uniqueness(X_test, lime_explanations, py_explanations, shap_explanations):
     shap_uniqueness = (len(set(shap_top_exps))/len(shap_top_exps))*100
     py_uniqueness = (len(set(py_top_exps))/len(py_top_exps))*100
 
-    result.append({ 'method':'LIME','lime_uniqueness': lime_uniqueness})
-    result.append({ 'method':'SHAP','shap_uniqueness': shap_uniqueness})
-    result.append({ 'method':'pyExplainer','py_uniqueness': py_uniqueness})
+    result.append({ 'method':'LIME','uniqueness': lime_uniqueness})
+    result.append({ 'method':'SHAP','uniqueness': shap_uniqueness})
+    result.append({ 'method':'pyExplainer','uniqueness': py_uniqueness})
 
     return result
 
-def similarity():
-    pass
+def similarity(X_test, lime_explanations, py_explanations, shap_explanations):
+    """
+    similarity of synthetic neighbours to instances (lime and pyExp)
+    """
+    result = []
+    lime_euc_meds = []
+    py_euc_meds = []
+    results = pd.DataFrame()
+    for i in range(len(X_test)):
+        X_explain = X_test.iloc[[i]]
+        # row_index = str(X_explain.index[0])
+        row_index = py_explanations[i]['name']
+        pyExplanation = py_explanations[i]
+        limeExplanation = lime_explanations[i]
+        #calculate euclidean distance between X_explain and synthetic data
+        py_euc = euclidean_distances(X_explain.values,pyExplanation['synthetic_data'].values)
+        lime_euc = euclidean_distances(X_explain.values,limeExplanation['synthetic_instance_for_global_model'])
+        #calculate median 
+        py_euc_med = np.median(py_euc)
+        lime_euc_med = np.median(lime_euc)
+        lime_euc_meds.append(lime_euc_med)
+        py_euc_meds.append(py_euc_med)
+        pyExp_series = pd.Series(data=[row_index,'pyExplainer',py_euc_med])
+        limeExp_series = pd.Series(data=[row_index,'LIME',lime_euc_med])
+       
+        results = pd.concat([results,pyExp_series.to_frame(1).T], ignore_index = True)
+        results = pd.concat([results,limeExp_series.to_frame(1).T], ignore_index = True)
 
 
+    results.columns = ['name', 'method', 'euc_dist_med']
+    result.append({ 'method':'LIME','euc_dist_med': lime_euc_meds})
+    result.append({ 'method':'pyExplainer','euc_dist_med': py_euc_meds})
 
+    return result
+    # results.to_csv('./eval_results/'+'4_'+ project_name+'_'+'SVM'+'.csv',index=False)
 
-
-
-
-
-
-
-
-
-
-
-
-# ibm aix360 metrics - faithfulness and monotonicity
-def faithfulness(model, x, coefs, base):
-    #find predicted class
-    pred_class = model.predict(x.reshape(1,-1))[0].astype(int)
+    # ant_svm = pd.read_csv('./eval_results/'+'4_ANT_SVM.csv')
     
-    #find indexs of coefficients in decreasing order of value
-    ar = np.argsort(-coefs)  #argsort returns indexes of values sorted in increasing order; so do it for negated array
-    pred_probs = np.zeros(x.shape[0])
-    for ind in np.nditer(ar):
-        x_copy = x.copy()
-        x_copy[ind] = base[ind]
-        x_copy_pr = model.predict_proba(x_copy.reshape(1,-1))
-        pred_probs[ind] = x_copy_pr[0][pred_class]
-        if (pred_probs[ind]==np.nan):
-            print(x_copy_pr)
-    print(pred_probs)
-    return -np.corrcoef(coefs, pred_probs)[0,1]
+    # ax= sns.boxplot(data=ant_svm, y='euc_dist_med', hue='method')
+    # ax.set(ylim=(0, 5000))
+    # plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# # ibm aix360 metrics - faithfulness and monotonicity
+# def faithfulness(model, x, coefs, base):
+#     #find predicted class
+#     pred_class = model.predict(x.reshape(1,-1))[0].astype(int)
     
-def monotonicity(model, x, coefs, base):
-    #find predicted class
-    pred_class = model.predict(x.reshape(1,-1))[0].astype(int)
+#     #find indexs of coefficients in decreasing order of value
+#     ar = np.argsort(-coefs)  #argsort returns indexes of values sorted in increasing order; so do it for negated array
+#     pred_probs = np.zeros(x.shape[0])
+#     for ind in np.nditer(ar):
+#         x_copy = x.copy()
+#         x_copy[ind] = base[ind]
+#         x_copy_pr = model.predict_proba(x_copy.reshape(1,-1))
+#         pred_probs[ind] = x_copy_pr[0][pred_class]
+#         if (pred_probs[ind]==np.nan):
+#             print(x_copy_pr)
+#     print(pred_probs)
+#     return -np.corrcoef(coefs, pred_probs)[0,1]
+    
+# def monotonicity(model, x, coefs, base):
+#     #find predicted class
+#     pred_class = model.predict(x.reshape(1,-1))[0].astype(int)
 
-    x_copy = base.copy()
+#     x_copy = base.copy()
 
-    #find indexs of coefficients in increasing order of value
-    ar = np.argsort(coefs)
-    pred_probs = np.zeros(x.shape[0])
-    for ind in np.nditer(ar):
-        x_copy[ind] = x[ind]
-        x_copy_pr = model.predict_proba(x_copy.reshape(1,-1))
-        pred_probs[ind] = x_copy_pr[0][pred_class]
+#     #find indexs of coefficients in increasing order of value
+#     ar = np.argsort(coefs)
+#     pred_probs = np.zeros(x.shape[0])
+#     for ind in np.nditer(ar):
+#         x_copy[ind] = x[ind]
+#         x_copy_pr = model.predict_proba(x_copy.reshape(1,-1))
+#         pred_probs[ind] = x_copy_pr[0][pred_class]
 
-    return np.all(np.diff(pred_probs[ar]) >= 0)
+#     return np.all(np.diff(pred_probs[ar]) >= 0)
 
 # calculate average percentage difference between prediction probabilities of global model and local model
-def avg_proba_diff(global_pred_proba, local_pred_proba):
-    # print('avg ', np.sum(local_pred_proba)/len(local_pred_proba))
-    if len(global_pred_proba)!= len(local_pred_proba):
-        print('unmatched length')
-        return
+# def avg_proba_diff(global_pred_proba, local_pred_proba):
+#     # print('avg ', np.sum(local_pred_proba)/len(local_pred_proba))
+#     if len(global_pred_proba)!= len(local_pred_proba):
+#         print('unmatched length')
+#         return
 
-    percentage_diffs = [(abs(global_pred_proba[i]-local_pred_proba[i])) for i in range(0, len(global_pred_proba))]
+#     percentage_diffs = [(abs(global_pred_proba[i]-local_pred_proba[i])) for i in range(0, len(global_pred_proba))]
     
-    return np.sum(percentage_diffs)/len(global_pred_proba)   
+#     return np.sum(percentage_diffs)/len(global_pred_proba)   
 
-def faithfulness_and_monotonicity(test_data_x,lime_explanations, shap_explanations):
-    lime_faithfulness = []
-    lime_monotonicity = []
-    shap_faithfulness = []
-    shap_monotonicity = []
-    for i in range(len(test_data_x)):
-        local_preds = list(lime_explanations[i]['rule'].local_pred.values())[0][0]
-        name = lime_explanations[i]['name']
-        lime_exp = lime_explanations[i]['rule']
-        x = test_data_x.iloc[i].values # data row type ndarray
-        coefs = np.zeros(x.shape[0])  # coefficients (weights) corresponding to attribute importance
-        # pred_class = int(np.round(global_preds[i]))
-        for v in lime_exp.local_exp[1]:
-            coefs[v[0]] = v[1]
-        base = np.zeros(x.shape[0])
-        fmlime = faithfulness(global_model,x,coefs,base)
-        lime_faithfulness.append(fmlime)
-        mlime = monotonicity(global_model,x,coefs,base)
-        lime_monotonicity.append(mlime)
+# def faithfulness_and_monotonicity(test_data_x,lime_explanations, shap_explanations):
+#     lime_faithfulness = []
+#     lime_monotonicity = []
+#     shap_faithfulness = []
+#     shap_monotonicity = []
+#     for i in range(len(test_data_x)):
+#         local_preds = list(lime_explanations[i]['rule'].local_pred.values())[0][0]
+#         name = lime_explanations[i]['name']
+#         lime_exp = lime_explanations[i]['rule']
+#         x = test_data_x.iloc[i].values # data row type ndarray
+#         coefs = np.zeros(x.shape[0])  # coefficients (weights) corresponding to attribute importance
+#         # pred_class = int(np.round(global_preds[i]))
+#         for v in lime_exp.local_exp[1]:
+#             coefs[v[0]] = v[1]
+#         base = np.zeros(x.shape[0])
+#         fmlime = faithfulness(global_model,x,coefs,base)
+#         lime_faithfulness.append(fmlime)
+#         mlime = monotonicity(global_model,x,coefs,base)
+#         lime_monotonicity.append(mlime)
 
-        coefs_shap = shap_explanations[i]['shap_values']
-        fmshap = faithfulness(global_model,x,coefs_shap,base)
-        shap_faithfulness.append(fmshap)
-        mshap = monotonicity(global_model,x,coefs_shap,base)
-        shap_monotonicity.append(mshap)
-        # print('Lime local prediction ' , local_preds)
-        # print('Global model prediction', lime_explanations[0]['rule'].predict_proba[1]) #global model prediction
-    lime_avg_faithfulness = sum(lime_faithfulness)/len(lime_faithfulness)
-    lime_percentage_monotonicity = sum(lime_monotonicity)/len(lime_monotonicity)
-    shap_avg_faithfulness = sum(shap_faithfulness)/len(shap_faithfulness)
-    shap_percentage_monotonicity = sum(shap_monotonicity)/len(shap_monotonicity)
-    print("lime_avg_faithfulness: ",lime_avg_faithfulness)
-    print("lime_percentage_monotonicity: " ,lime_percentage_monotonicity)
-    print("shap_avg_faithfulness: ", shap_avg_faithfulness)
-    print("shap_percentage_monotonicity: ", shap_percentage_monotonicity)
-    return lime_faithfulness,lime_monotonicity,shap_faithfulness,shap_monotonicity
+#         coefs_shap = shap_explanations[i]['shap_values']
+#         fmshap = faithfulness(global_model,x,coefs_shap,base)
+#         shap_faithfulness.append(fmshap)
+#         mshap = monotonicity(global_model,x,coefs_shap,base)
+#         shap_monotonicity.append(mshap)
+#         # print('Lime local prediction ' , local_preds)
+#         # print('Global model prediction', lime_explanations[0]['rule'].predict_proba[1]) #global model prediction
+#     lime_avg_faithfulness = sum(lime_faithfulness)/len(lime_faithfulness)
+#     lime_percentage_monotonicity = sum(lime_monotonicity)/len(lime_monotonicity)
+#     shap_avg_faithfulness = sum(shap_faithfulness)/len(shap_faithfulness)
+#     shap_percentage_monotonicity = sum(shap_monotonicity)/len(shap_monotonicity)
+#     print("lime_avg_faithfulness: ",lime_avg_faithfulness)
+#     print("lime_percentage_monotonicity: " ,lime_percentage_monotonicity)
+#     print("shap_avg_faithfulness: ", shap_avg_faithfulness)
+#     print("shap_percentage_monotonicity: ", shap_percentage_monotonicity)
+#     return lime_faithfulness,lime_monotonicity,shap_faithfulness,shap_monotonicity
 
-def get_percent_unique_explanation(explanation_list):
-    total_exp = len(explanation_list)
-    total_unique_exp = len(set(explanation_list))
-    percent_unique = (total_unique_exp/total_exp)*100
+# def get_percent_unique_explanation(explanation_list):
+#     total_exp = len(explanation_list)
+#     total_unique_exp = len(set(explanation_list))
+#     percent_unique = (total_unique_exp/total_exp)*100
 
-    count_exp = Counter(explanation_list)
-    max_exp_count = max(list(count_exp.values()))
-    percent_dup_explanation = (max_exp_count/total_exp)*100
+#     count_exp = Counter(explanation_list)
+#     max_exp_count = max(list(count_exp.values()))
+#     percent_dup_explanation = (max_exp_count/total_exp)*100
 
-    print('% unique explanation is',round(percent_unique,2))
-    print('% duplicate explanation is', round(percent_dup_explanation))
+#     print('% unique explanation is',round(percent_unique,2))
+#     print('% duplicate explanation is', round(percent_dup_explanation))

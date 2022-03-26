@@ -93,3 +93,12 @@ for each instance of interest:
   # total rules would be more for pyexplainer as each instance explanation have multiple propositions
 if we use this metric on shap, 
   do we extract the top (feature,importance) pair and find percentage uniqueness?
+
+
+
+
+
+Experiment notes:
+1. SHAP shap_values(self, X, **kwargs) parameter - l1_reg : "num_features(int)" # set to 10
+2. save Explainer data also
+3. not sure why camel knn lime predicting all negative... < 0.5

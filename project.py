@@ -40,7 +40,9 @@ class Project:
             ds_train,ds_test = "jedit-4.2.csv","jedit-4.3.csv"
         elif self.name == 'POI':
             ds_train,ds_test = "poi-2.5.csv","poi-3.0.csv"
-
+        else:
+            print("no dataset found")
+            return
         train_data = pd.read_csv(os.path.join(path,self.name,ds_train))
         test_data = pd.read_csv(os.path.join(path,self.name,ds_test))
 
