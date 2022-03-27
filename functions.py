@@ -221,15 +221,16 @@ def internal_fidelity(global_model, X_test, y_test, lime_explanations, py_explan
     true_f = [ np.abs(x) for x in global_model.coef_[0]]
     # feature_importances = pd.Series(data=true_f,index=X_test.columns)
     feature_importances = pd.Series(data=true_f)
+    # print("featimp ",feature_importances)
     feature_importances = feature_importances.sort_values(ascending=False)
-
-    true_features_indices = feature_importances[:10].index
 
     for method in exp_list: # for each (method) explanations
         method_res = {}
         method_res['method'] = method 
         recalls = []
         for exp_instance in exp_list[method]: # 100 instances
+            true_features_indices = feature_importances[:10].index
+            # print(true_features_indices)
             if (method == 'LIME'):
                 rules = exp_instance['rule']
                 exp_feature_indices = exp_instance['selected_feature_indices']
@@ -251,17 +252,30 @@ def internal_fidelity(global_model, X_test, y_test, lime_explanations, py_explan
                 # FIXME to test fidelity of the explanation "features", do I use the features extracted from top important rules or filter individual features sorted according to importance values 
                 
                 # method 1 - use features extracted from top 10 rules
-                top_rules = exp_instance['top_k_positive_rules'].head(10)
-                top_features_from_rules = get_features_from_rules(top_rules)
-                exp_feature_indices = [ i for i in range(len(features)) if features[i] in top_features_from_rules ]
+                # if exp_instance['y_explain'][0] == True:
+                #     top_rules = exp_instance['top_k_positive_rules'].head(10)
+                # elif exp_instance['y_explain'][0] == False:
+                #     top_rules = exp_instance['top_k_negative_rules'].head(10)
+                # top_features_from_rules = get_features_from_rules(top_rules)
+                # exp_feature_indices = [ i for i in range(len(features)) if features[i] in top_features_from_rules ]
 
                 # method 2 - use indivdual feaatures and their assigned importance value (not top "features" in explanation)
-                # exp_features = exp_instance['local_model'].get_rules().head(20).sort_values(by='importance',ascending=False)
-                # exp_feature_indices = exp_features.index[:10]
+                exp_features = exp_instance['local_model'].get_rules().head(20).sort_values(by='importance',ascending=False)
+                exp_feature_indices = exp_features.index[:10]
 
                 if (len(exp_feature_indices)<10): # set len of top features to min of exp features and top features
-                    true_features_indices = true_features_indices[:,len(exp_feature_indices)]
-
+                    true_features_indices = true_features_indices[:len(exp_feature_indices)]
+                    # print(exp_feature_indices)
+                # print("exp features", exp_feature_indices)
+                # print(set(true_features_indices))
+                # print(len(true_features_indices))
+                # print(exp_instance['X_explain'])
+                # print("pred: ",exp_instance['local_model'].predict(exp_instance['X_explain']))
+                if (len(true_features_indices)==0):
+                    print(exp_instance['name'])
+                    print(exp_instance['y_explain'])
+                    print(exp_instance['top_k_negative_rules'])
+                    print(exp_instance['top_k_positive_rules'])
                 recall = len(set(exp_feature_indices) & set(true_features_indices))/len(true_features_indices)
                 recalls.append(recall)
 
@@ -270,7 +284,8 @@ def internal_fidelity(global_model, X_test, y_test, lime_explanations, py_explan
                 exp_feature_indices = exp_feature_indices.sort_values(ascending=False).index
 
                 if (len(exp_feature_indices)<10):
-                    true_features_indices = true_features_indices[:,len(exp_feature_indices)]
+                    print("len of exp features: ",  exp_feature_indices)
+                    true_features_indices = true_features_indices[:len(exp_feature_indices)]
 
                 recall = len(set(exp_feature_indices) & set(true_features_indices))/len(true_features_indices)
                 # top_importance_boundary = np.quantile(exp_importances, .75)
@@ -308,6 +323,7 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
             if (pred_probs[ind]==np.nan):
                 print(x_copy_pr)
         print(pred_probs)
+        print(coefs)
         pred_probs = pred_probs[pred_probs!=0]
         return -np.corrcoef(coefs, pred_probs)[0,1]
 
@@ -331,6 +347,7 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
         coefs_shap = np.array(shap_explanations[i]['shap_values'])
         count = np.count_nonzero(coefs_shap)
         sorted_indices = np.argsort(-coefs_shap)[:count]
+        # print("coefshap ",coefs_shap.shape)
         fmshap = faithfulness_score(global_model,x,coefs_shap,base,sorted_indices)
         shap_faithfulness.append(fmshap)
 
@@ -349,9 +366,9 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
 
             x_copy_pr = global_model.predict_proba(x_copy.reshape(1,-1))
             pred_probs.append(x_copy_pr[0][pred_class])
-            if (pred_probs[ind]==np.nan):
-                print(x_copy_pr)
-        print(pred_probs)
+        #     if (pred_probs[ind]==np.nan):
+        #         print(x_copy_pr)
+        # print(pred_probs)
         fmpy = -np.corrcoef(coefs_pyexp, pred_probs)[0,1]
         py_faithfulness.append(fmpy)
 
