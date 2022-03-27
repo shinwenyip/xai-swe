@@ -476,20 +476,14 @@ def uniqueness(global_model, X_test, lime_explanations, py_explanations, shap_ex
     py_top_exps = []
     for i in range(len(X_test)):
         lime_exp = lime_explanations[i]['rule']
-        print(lime_exp.as_list()[0])
         top_lime = lime_exp.as_list()[0][0] # ex: loc > 543.00
         lime_top_exps.append(top_lime)
         x = X_test.iloc[i].values
         pred_class = py_explanations[i]['local_model'].predict_proba(py_explanations[i]['X_explain'].values)[0][1]
-        print(pred_class)
         # pred_class = global_model.predict(x.reshape(1,-1))[0].astype(int)
         if pred_class > 0.5:
             py_exp = py_explanations[i]['top_k_positive_rules']['rule'].iloc[0].strip()
         else:
-            print("clean")
-            print(py_explanations[i]['top_k_negative_rules']['rule'])
-            print("clean2")
-            print(py_explanations[i]['top_k_negative_rules']['rule'].iloc[0])
             py_exp = py_explanations[i]['top_k_negative_rules']['rule'].iloc[0].strip()
         
         # py_exp = py_explanations[i]['top_k_positive_rules']['rule'][0].strip()
