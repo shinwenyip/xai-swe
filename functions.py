@@ -314,17 +314,20 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
         
         #find indexs of coefficients in decreasing order of value
         # ar = np.argsort(-coefs)  #argsort returns indexes of values sorted in increasing order; so do it for negated array
-        pred_probs = np.zeros(x.shape[0])
+        # pred_probs = np.zeros(x.shape[0])
+        pred_probs = []
         for ind in np.nditer(np.array(indices)):
             x_copy = x.copy()
             x_copy[ind] = base[ind]
             x_copy_pr = model.predict_proba(x_copy.reshape(1,-1))
-            pred_probs[ind] = x_copy_pr[0][pred_class]
-            if (pred_probs[ind]==np.nan):
-                print(x_copy_pr)
-        print(pred_probs)
-        print(coefs)
-        pred_probs = pred_probs[pred_probs!=0]
+            pred_probs.append(x_copy_pr[0][pred_class])
+            # pred_probs[ind] = x_copy_pr[0][pred_class]
+            # if (pred_probs[ind]==np.nan):
+            #     print(x_copy_pr)
+        # print(pred_probs)
+        # print(coefs)
+        # if len(coefs)<len(pred_probs):
+        #     pred_probs = pred_probs[pred_probs!=0]
         return -np.corrcoef(coefs, pred_probs)[0,1]
 
     result = []
@@ -338,7 +341,8 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
         sorted_indices = [np.abs(lime_exp.as_map()[1][i][0]) for i in range(len(lime_exp.as_map()[1]))] # sorted in order of decending importances
         coef_map = sorted(lime_exp.as_map()[1],key=itemgetter(0))
         x = X_test.iloc[i].values # data row type ndarray
-        coefs = [np.abs(coef_map[i][1]) for i in range(len(coef_map))] # coefs for top 10 features (sorted by index)
+        # coefs = [np.abs(coef_map[i][1]) for i in range(len(coef_map))] # coefs for top 10 features (sorted by index)
+        coefs = [np.abs(lime_exp.as_map()[1][i][1]) for i in range(len(lime_exp.as_map()[1]))]
         base = np.zeros(x.shape[0]) 
         fmlime = faithfulness_score(global_model,x,coefs,base,sorted_indices)
         lime_faithfulness.append(fmlime)
@@ -347,14 +351,18 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
         coefs_shap = np.array(shap_explanations[i]['shap_values'])
         count = np.count_nonzero(coefs_shap)
         sorted_indices = np.argsort(-coefs_shap)[:count]
+        coefs = np.sort(coefs_shap[coefs_shap!=0])[::-1]
         # print("coefshap ",coefs_shap.shape)
-        fmshap = faithfulness_score(global_model,x,coefs_shap,base,sorted_indices)
+        fmshap = faithfulness_score(global_model,x,coefs,base,sorted_indices)
         shap_faithfulness.append(fmshap)
 
         # calculate for pyExplainer
         pred_probs = []
         pred_class = global_model.predict(x.reshape(1,-1))[0].astype(int)
-        top_rules = py_explanations[i]['top_k_positive_rules'].head(10)
+        if pred_class ==1:
+            top_rules = py_explanations[i]['top_k_positive_rules'].head(10)
+        elif pred_class ==0:
+            top_rules = py_explanations[i]['top_k_negative_rules'].head(10)
         coefs_pyexp = top_rules['importance'] # top 10 importance values
         rules = top_rules['rule']
         for rule in rules:
@@ -366,8 +374,8 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
 
             x_copy_pr = global_model.predict_proba(x_copy.reshape(1,-1))
             pred_probs.append(x_copy_pr[0][pred_class])
-        #     if (pred_probs[ind]==np.nan):
-        #         print(x_copy_pr)
+            if (x_copy_pr[0][pred_class]==np.nan):
+                print(x_copy_pr)
         # print(pred_probs)
         fmpy = -np.corrcoef(coefs_pyexp, pred_probs)[0,1]
         py_faithfulness.append(fmpy)
@@ -390,14 +398,19 @@ def monotonicity(global_model, X_test, lime_explanations, py_explanations, shap_
         # original predicted class of the instance
         pred_class = model.predict(x.reshape(1,-1))[0].astype(int)
         x_copy = base.copy()
-        pred_probs = np.zeros(x.shape[0])
+        # pred_probs = np.zeros(x.shape[0])
+        pred_probs = []
+
+        # pred_probs = []
         for ind in np.nditer(ar):
             x_copy[ind] = x[ind]
             x_copy_pr = model.predict_proba(x_copy.reshape(1,-1))
-            pred_probs[ind] = x_copy_pr[0][pred_class]
+            # pred_probs[ind] = x_copy_pr[0][pred_class]
+            pred_probs.append(x_copy_pr[0][pred_class])
 
-        pred_probs = pred_probs[pred_probs!=0]
-        return np.all(np.diff(pred_probs[ar]) >= 0)
+        # pred_probs = pred_probs[pred_probs!=0]
+        # return np.all(np.diff(pred_probs[ar]) >= 0)
+        return np.all(np.diff(pred_probs) >= 0)
 
     result = []
     lime_monotonicity = []
@@ -426,7 +439,10 @@ def monotonicity(global_model, X_test, lime_explanations, py_explanations, shap_
         x_copy = base.copy()
         pred_probs = []
         pred_class = global_model.predict(x.reshape(1,-1))[0].astype(int)
-        top_rules = py_explanations[i]['top_k_positive_rules'].head(10)
+        if pred_class ==1:
+            top_rules = py_explanations[i]['top_k_positive_rules'].head(10)
+        elif pred_class ==0:
+            top_rules = py_explanations[i]['top_k_negative_rules'].head(10)
         coefs_pyexp = top_rules['importance'][::-1] # top 10 importance values assigned to rules -ascending order
         rules = top_rules['rule'][::-1] # ascending order
 
@@ -448,7 +464,7 @@ def monotonicity(global_model, X_test, lime_explanations, py_explanations, shap_
     return result
 
 
-def uniqueness(X_test, lime_explanations, py_explanations, shap_explanations):
+def uniqueness(global_model, X_test, lime_explanations, py_explanations, shap_explanations):
     """
     returns percentage uniqueness of top 1 most important factor in each explanation 
     """
@@ -460,10 +476,23 @@ def uniqueness(X_test, lime_explanations, py_explanations, shap_explanations):
     py_top_exps = []
     for i in range(len(X_test)):
         lime_exp = lime_explanations[i]['rule']
+        print(lime_exp.as_list()[0])
         top_lime = lime_exp.as_list()[0][0] # ex: loc > 543.00
         lime_top_exps.append(top_lime)
-
-        py_exp = py_explanations[i]['top_k_positive_rules']['rule'][0].strip()
+        x = X_test.iloc[i].values
+        pred_class = py_explanations[i]['local_model'].predict_proba(py_explanations[i]['X_explain'].values)[0][1]
+        print(pred_class)
+        # pred_class = global_model.predict(x.reshape(1,-1))[0].astype(int)
+        if pred_class > 0.5:
+            py_exp = py_explanations[i]['top_k_positive_rules']['rule'].iloc[0].strip()
+        else:
+            print("clean")
+            print(py_explanations[i]['top_k_negative_rules']['rule'])
+            print("clean2")
+            print(py_explanations[i]['top_k_negative_rules']['rule'].iloc[0])
+            py_exp = py_explanations[i]['top_k_negative_rules']['rule'].iloc[0].strip()
+        
+        # py_exp = py_explanations[i]['top_k_positive_rules']['rule'][0].strip()
         top_py = py_exp.split(" & ") # ['loc > 19', 'wmc > 9']
         py_top_exps = py_top_exps + top_py
 

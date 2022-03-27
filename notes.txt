@@ -95,7 +95,25 @@ if we use this metric on shap,
   do we extract the top (feature,importance) pair and find percentage uniqueness?
 
 
-
+        method  total_monotonicity model project
+0         LIME                   0    LR     ANT
+1         SHAP                   1    LR     ANT
+2  pyExplainer                   0    LR     ANT
+0         LIME                   0   SVM     ANT
+1         SHAP                  57   SVM     ANT
+2  pyExplainer                  19   SVM     ANT
+0         LIME                  66   KNN     ANT
+1         SHAP                  80   KNN     ANT
+2  pyExplainer                   5   KNN     ANT
+0         LIME                   2    LR   CAMEL
+1         SHAP                   1    LR   CAMEL
+2  pyExplainer                   0    LR   CAMEL
+0         LIME                   0   SVM   CAMEL
+1         SHAP                   6   SVM   CAMEL
+2  pyExplainer                   0   SVM   CAMEL
+0         LIME                  25   KNN   CAMEL
+1         SHAP                  33   KNN   CAMEL
+2  pyExplainer                   2   KNN   CAMEL
 
 
 Experiment notes:
