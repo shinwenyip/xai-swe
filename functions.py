@@ -85,12 +85,14 @@ def get_explanations(project,explain_method,model_name,X_train,y_train,global_mo
         print('explain_method must be either lime, pyExp or shap')
 
     if os.path.exists(filepath):
-        explanations = pickle.load(open(filepath,'rb'))
+        with open(filepath,'rb') as f:
+            explanations = pickle.load(f)
     else:
         print(filepath)
         test_data_x,test_data_y,_= project.get_sampled_data()
         explanations = generate_explanations(explainer,test_data_x,test_data_y,global_model)
-        pickle.dump(explanations,open(filepath,'wb'))
+        with open(filepath,'wb') as f:
+            pickle.dump(explanations,f)
 
     return explainer,explanations
 
@@ -506,7 +508,7 @@ def uniqueness(global_model, X_test, lime_explanations, py_explanations, shap_ex
 
     return result
 
-def similarity(X_test, lime_explanations, py_explanations, shap_explanations):
+def similarity(X_test, lime_explanations, py_explanations):
     """
     similarity of synthetic neighbours to instances (lime and pyExp)
     """
@@ -539,7 +541,7 @@ def similarity(X_test, lime_explanations, py_explanations, shap_explanations):
     result.append({ 'method':'LIME','euc_dist_med': lime_euc_meds})
     result.append({ 'method':'pyExplainer','euc_dist_med': py_euc_meds})
 
-    return result
+    return results
     # results.to_csv('./eval_results/'+'4_'+ project_name+'_'+'SVM'+'.csv',index=False)
 
     # ant_svm = pd.read_csv('./eval_results/'+'4_ANT_SVM.csv')
