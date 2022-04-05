@@ -104,10 +104,10 @@ class Project:
             global_model.fit(self.X_train_bin, self.y_train_rs, self.X_trainStd)
         elif model_name == 'KNN':
             global_model = KNeighborsClassifier()
-            global_model.fit(self.X_train, self.y_train)
+            global_model.fit(self.X_train.values, self.y_train)
         elif model_name == 'NB':
             global_model = GaussianNB()
-            global_model.fit(self.X_train,self.y_train)
+            global_model.fit(self.X_train.values,self.y_train.values)
         # elif model_name == 'NN':
         #     global_model = nn_small()
         #     global_model.compile(loss=fn, optimizer='adam', metrics=['accuracy'])
