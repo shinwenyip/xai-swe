@@ -71,7 +71,7 @@ def get_explanations(project,explain_method,model_name,X_train,y_train,global_mo
         shap_values
     """
     # explain_method - str: 'lime','pyExp', 'shap'
-    filepath = 'explanations/' + project.name + '_'+ model_name +'_'+explain_method+'_explanations' +'.pkl'
+    filepath = 'explanation/' + project.name + '_'+ model_name +'_'+explain_method+'_explanations' +'.pkl'
 
     if explain_method == 'lime':
         explainer = LimeTabularExplainer(X_train.values, feature_names=X_train.columns, 
@@ -95,6 +95,47 @@ def get_explanations(project,explain_method,model_name,X_train,y_train,global_mo
             pickle.dump(explanations,f)
 
     return explainer,explanations
+
+def evaluate_model_performance(project,model_name):
+    """
+    performance check for original task model
+    """
+    y_test = project.y_test.values
+    model = project.models[model_name]
+
+    print("Dataset project: "+project.name)
+    if model_name == 'BRCG':
+        pred = model.predict(project.X_test_bin)
+        print(model_name + " Training accuracy(in %):", metrics.accuracy_score(project.y_train_rs, model.predict(project.X_train_bin))*100)
+        # print(model_name + " Test accuracy(in %):", metrics.accuracy_score(y_test, pred)*100)
+  
+    elif model_name == 'LogRR':
+        pred = model.predict(project.X_test_bin, project.X_testStd)
+        print(model_name + " Training accuracy(in %):", metrics.accuracy_score(project.y_train_rs, model.predict(project.X_train_bin,project.X_trainStd))*100)
+        # print(model_name + " Test accuracy(in %):", metrics.accuracy_score(project.y_test, pred)*100)
+
+    elif model_name == 'NN':
+        print(model_name + " Training accuracy(in %):", model.evaluate(project.X_trainNorm, project.y_train_rs, verbose=0)[1] *100)
+        print(model_name + " Test accuracy(in %):", model.evaluate(project.X_testNorm, y_test, verbose=0)[1] *100)
+        return
+    
+    elif  model_name == 'LR':
+        pred = model.predict(project.X_test.values)
+        print(model_name + " Training accuracy(in %):", metrics.accuracy_score(project.y_train.values, model.predict(project.X_train.values))*100)
+    elif  model_name == 'SVM':
+        pred = model.predict(project.X_test.values)
+        print(model_name + " Training accuracy(in %):", metrics.accuracy_score(project.y_train.values, model.predict(project.X_train.values))*100)
+    elif model_name == 'KNN':
+        pred = model.predict(project.X_test.values)
+        print(model_name + " Training accuracy(in %):", metrics.accuracy_score(project.y_train.values, model.predict(project.X_train.values))*100)
+    elif model_name == 'NB':
+        pred = model.predict(project.X_test.values)
+        print(model_name + " Training accuracy(in %):", metrics.accuracy_score(project.y_train.values, model.predict(project.X_train.values))*100)
+        
+    print(model_name + " Test accuracy(in %):", metrics.accuracy_score(y_test, pred)*100)
+    print(model_name +" precision(in %):", metrics.precision_score(y_test, pred)*100)
+    print(model_name +" recall(in %):", metrics.recall_score(y_test, pred)*100)
+    print(model_name +" f1(in %):", metrics.f1_score(y_test, pred)*100)
 
 # util functions for evaluations
 
