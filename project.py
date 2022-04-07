@@ -92,7 +92,7 @@ class Project:
             # global_model.fit(self.X_trainNorm, self.y_train_rs)
             global_model.fit(self.X_train.values, self.y_train.values)
         elif model_name == 'LR':
-            global_model = LogisticRegression(random_state=self.random_state, n_jobs=24)
+            global_model = LogisticRegression(random_state=self.random_state, n_jobs=24, max_iter=10000)
             global_model.fit(self.X_train.values, self.y_train.values)
             # global_model.fit(self.X_trainStd, self.y_train_rs)
         elif model_name == 'BRCG':
