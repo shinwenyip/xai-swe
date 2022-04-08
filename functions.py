@@ -7,7 +7,7 @@ import re
 from operator import itemgetter
 from sklearn.metrics.pairwise import  euclidean_distances
 from sklearn.neighbors import KNeighborsClassifier
-
+from sklearn.naive_bayes import GaussianNB
 
 def generate_explanations(explainer,X_test,y_test, global_model):
     explanations = []
@@ -355,8 +355,8 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
         indices: sorted indices according to importance(descending)
         """
         # original predicted class of the instance
-        pred_class = model.predict(x.reshape(1,-1))[0].astype(int)
-        
+        pred_class = np.argmax(model.predict_proba(x.reshape(1,-1)),axis=1)[0]
+        print("predicted class: ",pred_class)
         #find indexs of coefficients in decreasing order of value
         # ar = np.argsort(-coefs)  #argsort returns indexes of values sorted in increasing order; so do it for negated array
         # pred_probs = np.zeros(x.shape[0])
@@ -368,8 +368,11 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
             pred_probs.append(x_copy_pr[0][pred_class])
             # pred_probs[ind] = x_copy_pr[0][pred_class]
         if type(global_model) == KNeighborsClassifier:
-            print(x_copy_pr)
-        # print(pred_probs)
+            # print("knn ", x_copy_pr)
+            print("knn ", pred_probs)
+        if type(global_model) == GaussianNB:
+            # print("nb ", x_copy_pr)
+            print("nb ", pred_probs)
         # print(coefs)
         # if len(coefs)<len(pred_probs):
         #     pred_probs = pred_probs[pred_probs!=0]
