@@ -6,6 +6,8 @@ from pyexplainer.pyexplainer_pyexplainer import *
 import re
 from operator import itemgetter
 from sklearn.metrics.pairwise import  euclidean_distances
+from sklearn.neighbors import KNeighborsClassifier
+
 
 def generate_explanations(explainer,X_test,y_test, global_model):
     explanations = []
@@ -365,8 +367,8 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
             x_copy_pr = model.predict_proba(x_copy.reshape(1,-1))
             pred_probs.append(x_copy_pr[0][pred_class])
             # pred_probs[ind] = x_copy_pr[0][pred_class]
-            # if (pred_probs[ind]==np.nan):
-            #     print(x_copy_pr)
+        if type(global_model) == KNeighborsClassifier:
+            print(x_copy_pr)
         # print(pred_probs)
         # print(coefs)
         # if len(coefs)<len(pred_probs):
@@ -385,17 +387,22 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
         coef_map = sorted(lime_exp.as_map()[1],key=itemgetter(0))
         x = X_test.iloc[i].values # data row type ndarray
         # coefs = [np.abs(coef_map[i][1]) for i in range(len(coef_map))] # coefs for top 10 features (sorted by index)
-        coefs = [np.abs(lime_exp.as_map()[1][i][1]) for i in range(len(lime_exp.as_map()[1]))]
+        coefs = [lime_exp.as_map()[1][i][1] for i in range(len(lime_exp.as_map()[1]))]
         base = np.zeros(x.shape[0]) 
+        # NOTE DEBUG
+        # print("lime coefmap: ", coef_map)
+        # print("lime coefs: ", coefs)
         fmlime = faithfulness_score(global_model,x,coefs,base,sorted_indices)
         lime_faithfulness.append(fmlime)
 
         # calculate for shap
         coefs_shap = np.array(shap_explanations[i]['shap_values'])
         count = np.count_nonzero(coefs_shap)
-        sorted_indices = np.argsort(-coefs_shap)[:count]
-        coefs = np.sort(coefs_shap[coefs_shap!=0])[::-1]
-        # print("coefshap ",coefs_shap.shape)
+        sorted_indices = np.argsort(-np.abs(coefs_shap))[:count]
+        # coefs = np.sort(coefs_shap[coefs_shap!=0])[::-1]
+        coefs = [coefs_shap[i] for i in sorted_indices]
+        # print("coefshap indices ",sorted_indices)
+        # print("coefshap ",coefs)
         fmshap = faithfulness_score(global_model,x,coefs,base,sorted_indices)
         shap_faithfulness.append(fmshap)
 
