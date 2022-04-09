@@ -123,6 +123,7 @@ Experiment notes:
 4. increase iteration for LR for convergence -done
 5. performance for models are quite bad..
 6. knn faithfulness predictions all the same..
+7. check shap logit link 
 TODO - write in detail for each metric how it works
 
 Dataset project: ANT
