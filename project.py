@@ -122,13 +122,15 @@ class Project:
 
         return global_model
 
-    def sample(self,quantity, X_test,y_test):
+    def sample(self,global_model_name,quantity, X_test,y_test):
         """
         Takes dataset as input and return [quantity] number of sample instances with 50% defective and 50% clean
         Returns: (test_data_x, test_data_y, )
         """
+        global_model = self.models[global_model_name]
         test_data = X_test.copy()
-        test_data['defect'] = y_test
+        preds = global_model.predict(X_test.values)
+        test_data['defect'] = [p for p in preds]
         test_data['freq'] = 1./test_data.groupby('defect')['defect'].transform('count')
         # sampled data with half clean and half defective
         sampled_data = test_data.sample(quantity,weights = test_data.freq, random_state=1, replace=False)
@@ -137,8 +139,9 @@ class Project:
         test_data_y = sampled_data['defect']
         return test_data_x, test_data_y, sampled_data
          
-    def get_sampled_data(self):
-        self.test_data_x, self.test_data_y, self.sampled_data = self.sample(100,self.X_test,self.y_test)
+    def get_sampled_data(self,global_model_name):
+
+        self.test_data_x, self.test_data_y, self.sampled_data = self.sample(global_model_name,100,self.X_test ,self.y_test)
         return self.test_data_x, self.test_data_y, self.sampled_data
     
 

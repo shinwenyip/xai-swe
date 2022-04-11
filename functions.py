@@ -73,7 +73,7 @@ def get_explanations(project,explain_method,model_name,X_train,y_train,global_mo
         shap_values
     """
     # explain_method - str: 'lime','pyExp', 'shap'
-    filepath = 'explanation/' + project.name + '_'+ model_name +'_'+explain_method+'_explanations' +'.pkl'
+    filepath = 'explanations/' + project.name + '_'+ model_name +'_'+explain_method+'_explanations' +'.pkl'
 
     if explain_method == 'lime':
         explainer = LimeTabularExplainer(X_train.values, feature_names=X_train.columns, 
@@ -82,7 +82,7 @@ def get_explanations(project,explain_method,model_name,X_train,y_train,global_mo
         explainer = PyExplainer(X_train, y_train, X_train.columns, 'defect', global_model, class_label)
     elif explain_method == 'shap':
         f = lambda x: global_model.predict_proba(x)[:,1]
-        explainer = KernelExplainer(f, X_train)
+        explainer = KernelExplainer(f, X_train, link="logit")
     else: 
         print('explain_method must be either lime, pyExp or shap')
 
@@ -91,7 +91,7 @@ def get_explanations(project,explain_method,model_name,X_train,y_train,global_mo
             explanations = pickle.load(f)
     else:
         print(filepath)
-        test_data_x,test_data_y,_= project.get_sampled_data()
+        test_data_x,test_data_y,_= project.get_sampled_data(model_name)
         explanations = generate_explanations(explainer,test_data_x,test_data_y,global_model)
         with open(filepath,'wb') as f:
             pickle.dump(explanations,f)
