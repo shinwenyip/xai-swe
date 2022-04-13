@@ -395,7 +395,8 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
         base = np.zeros(x.shape[0]) 
 
         fmlime = faithfulness_score(global_model,x,coefs,base,sorted_indices)
-        lime_faithfulness.append(fmlime)
+        if fmlime!=0:
+            lime_faithfulness.append(fmlime)
 
         # calculate for shap
         coefs_shap = np.array(shap_explanations[i]['shap_values'])
@@ -406,7 +407,8 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
         # print("coefshap indices ",sorted_indices)
         # print("coefshap ",coefs)
         fmshap = faithfulness_score(global_model,x,coefs,base,sorted_indices)
-        shap_faithfulness.append(fmshap)
+        if fmshap!=0:
+            shap_faithfulness.append(fmshap)
 
         # calculate for pyExplainer
         pred_probs = []
@@ -433,7 +435,8 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
         fmpy = -np.corrcoef(coefs_pyexp, pred_probs)[0,1]
         if (np.isnan(fmpy)):
             fmpy = 0
-        py_faithfulness.append(fmpy)
+        else:
+            py_faithfulness.append(fmpy)
 
     result.append({ 'method':'LIME','avg_faithfulness':np.mean(lime_faithfulness),'faithfulness_scores':lime_faithfulness})
     result.append({ 'method':'SHAP','avg_faithfulness':np.mean(shap_faithfulness),'faithfulness_scores':shap_faithfulness})
