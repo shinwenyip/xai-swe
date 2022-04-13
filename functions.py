@@ -82,7 +82,7 @@ def get_explanations(project,explain_method,model_name,X_train,y_train,global_mo
         explainer = PyExplainer(X_train, y_train, X_train.columns, 'defect', global_model, class_label)
     elif explain_method == 'shap':
         f = lambda x: global_model.predict_proba(x)[:,1]
-        explainer = KernelExplainer(f, X_train, link="logit")
+        explainer = KernelExplainer(f, X_train)
     else: 
         print('explain_method must be either lime, pyExp or shap')
 
@@ -376,6 +376,9 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
         # print(coefs)
         # if len(coefs)<len(pred_probs):
         #     pred_probs = pred_probs[pred_probs!=0]
+        corr = np.corrcoef(coefs, pred_probs)[0,1]
+        if (np.isnan(corr)):
+            return 0
         return -np.corrcoef(coefs, pred_probs)[0,1]
 
     result = []
@@ -431,6 +434,8 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
                 print(x_copy_pr)
         # print(pred_probs)
         fmpy = -np.corrcoef(coefs_pyexp, pred_probs)[0,1]
+        if (np.isnan(fmpy)):
+            fmpy = 0
         py_faithfulness.append(fmpy)
 
     result.append({ 'method':'LIME','avg_faithfulness':np.mean(lime_faithfulness),'faithfulness_scores':lime_faithfulness})

@@ -124,11 +124,12 @@ Experiment notes:
 5. performance for models are quite bad..
 6. knn faithfulness predictions all the same..
 7. check shap logit link 
+8. add decision tree for internal fidelity metric
 TODO - write in detail for each metric how it works
 
-Dataset project: ANT
-SVM Training accuracy(in %): 76.83397683397683
-SVM Test accuracy(in %): 76.51006711409396
-SVM precision(in %): 48.08510638297872
-SVM recall(in %): 68.07228915662651
-SVM f1(in %): 56.35910224438903
+Dataset project: CAMEL
+SVM Training accuracy(in %): 83.8302752293578
+SVM Test accuracy(in %): 80.72538860103627
+SVM precision(in %): 100.0
+SVM recall(in %): 1.0638297872340425
+SVM f1(in %): 2.1052631578947367
