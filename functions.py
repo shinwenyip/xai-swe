@@ -456,11 +456,9 @@ def monotonicity(global_model, X_test, lime_explanations, py_explanations, shap_
         # original predicted class of the instance
         pred_class = model.predict(x.reshape(1,-1))[0].astype(int)
         x_copy = base.copy()
-        # pred_probs = np.zeros(x.shape[0])
         pred_probs = []
 
-        # pred_probs = []
-        for ind in np.nditer(ar):
+        for ind in np.nditer(ar): #increasing importance
             x_copy[ind] = x[ind]
             x_copy_pr = model.predict_proba(x_copy.reshape(1,-1))
             # pred_probs[ind] = x_copy_pr[0][pred_class]
@@ -476,21 +474,38 @@ def monotonicity(global_model, X_test, lime_explanations, py_explanations, shap_
     py_monotonicity = []
 
     for i in range(len(X_test)):
+        x = X_test.iloc[i].values # data row type ndarray
+        pred_class = global_model.predict(x.reshape(1,-1))[0].astype(int)
+
         # calculate for lime
         lime_exp = lime_explanations[i]['rule']
         sorted_indices = [np.abs(lime_exp.as_map()[1][i][0]) for i in range(len(lime_exp.as_map()[1]))] # sorted in order of decending importances
         coef_map = sorted(lime_exp.as_map()[1],key=itemgetter(0))
-        x = X_test.iloc[i].values # data row type ndarray
-        coefs = [np.abs(coef_map[i][1]) for i in range(len(coef_map))] # coefs for top 10 features (sorted by index)
         base = np.zeros(x.shape[0]) 
-        mlime = monotonicity_score(global_model,x,coefs,base,sorted_indices)
+        coefs = [lime_exp.as_map()[1][i][1] for i in range(len(lime_exp.as_map()[1]))] # top 10 feature coefficients in descending order 
+        if pred_class == 0:
+            filtered_indices = [sorted_indices[i] for i in range(len(sorted_indices)) if coefs[i]<0]   
+        else:
+            filtered_indices = [sorted_indices[i] for i in range(len(sorted_indices)) if coefs[i]>0]   
+        if len(filtered_indices) ==0:
+            mlime = False # or ignore?
+        else:
+            mlime = monotonicity_score(global_model,x,coefs,base,sorted_indices)
         lime_monotonicity.append(mlime)
 
         # calculate for shap
         coefs_shap = np.array(shap_explanations[i]['shap_values'])
         count = np.count_nonzero(coefs_shap)
         sorted_indices = np.argsort(-coefs_shap)[:count]
-        mshap = monotonicity_score(global_model,x,coefs_shap,base,sorted_indices)
+        coefs = [coefs_shap[i] for i in sorted_indices] # coefficients in descending order of importance
+        if pred_class == 0:
+            filtered_indices = [sorted_indices[i] for i in range(len(sorted_indices)) if coefs[i]<0]   
+        else:
+            filtered_indices = [sorted_indices[i] for i in range(len(sorted_indices)) if coefs[i]>0] 
+        if len(filtered_indices) ==0:
+            mshap = False
+        else:
+            mshap = monotonicity_score(global_model,x,coefs_shap,base,sorted_indices)
         shap_monotonicity.append(mshap)
 
         # calculate for pyExplainer
