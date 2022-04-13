@@ -351,11 +351,13 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
     features = list(X_test.columns)
     def faithfulness_score(model,x,coefs,base,indices):
         """
-        coefs: importance vals sorted according to original index
-        indices: sorted indices according to importance(descending)
+        coefs: importance vals sorted according to decreasing importance
+        indices: sorted indices according to decreasing importance
         """
         # original predicted class of the instance
         pred_class = np.argmax(model.predict_proba(x.reshape(1,-1)),axis=1)[0]
+        if pred_class == 0:
+            coefs = [-c for c in coefs]
         print("predicted class: ",pred_class)
         #find indexs of coefficients in decreasing order of value
         # ar = np.argsort(-coefs)  #argsort returns indexes of values sorted in increasing order; so do it for negated array
@@ -367,17 +369,13 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
             x_copy_pr = model.predict_proba(x_copy.reshape(1,-1))
             pred_probs.append(x_copy_pr[0][pred_class])
             # pred_probs[ind] = x_copy_pr[0][pred_class]
-        if type(global_model) == KNeighborsClassifier:
-            # print("knn ", x_copy_pr)
-            print("knn ", pred_probs)
-        if type(global_model) == GaussianNB:
-            # print("nb ", x_copy_pr)
-            print("nb ", pred_probs)
         # print(coefs)
         # if len(coefs)<len(pred_probs):
         #     pred_probs = pred_probs[pred_probs!=0]
         corr = np.corrcoef(coefs, pred_probs)[0,1]
         if (np.isnan(corr)):
+            print(type(global_model))
+            print(pred_probs)
             return 0
         return -np.corrcoef(coefs, pred_probs)[0,1]
 
@@ -390,14 +388,12 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
         # calculate for lime
         lime_exp = lime_explanations[i]['rule']
         sorted_indices = [np.abs(lime_exp.as_map()[1][i][0]) for i in range(len(lime_exp.as_map()[1]))] # sorted in order of decending importances
-        coef_map = sorted(lime_exp.as_map()[1],key=itemgetter(0))
+        coef_map = sorted(lime_exp.as_map()[1],key=itemgetter(0)) # top10 features sorted according to increasing index
         x = X_test.iloc[i].values # data row type ndarray
         # coefs = [np.abs(coef_map[i][1]) for i in range(len(coef_map))] # coefs for top 10 features (sorted by index)
-        coefs = [lime_exp.as_map()[1][i][1] for i in range(len(lime_exp.as_map()[1]))]
+        coefs = [lime_exp.as_map()[1][i][1] for i in range(len(lime_exp.as_map()[1]))] # top 10 feature coefficients in descending order
         base = np.zeros(x.shape[0]) 
-        # NOTE DEBUG
-        # print("lime coefmap: ", coef_map)
-        # print("lime coefs: ", coefs)
+
         fmlime = faithfulness_score(global_model,x,coefs,base,sorted_indices)
         lime_faithfulness.append(fmlime)
 
@@ -420,6 +416,7 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
         elif pred_class ==0:
             top_rules = py_explanations[i]['top_k_negative_rules'].head(10)
         coefs_pyexp = top_rules['importance'] # top 10 importance values
+
         rules = top_rules['rule']
         for rule in rules:
             x_copy = x.copy() 
