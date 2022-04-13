@@ -124,7 +124,7 @@ Experiment notes:
 5. performance for models are quite bad..
 6. knn faithfulness predictions all the same..
 7. check shap logit link 
-8. add decision tree for internal fidelity metric
+8. SHAP FOR JEDIT lr METRIC1 abnormal results
 TODO - write in detail for each metric how it works
 
 Dataset project: CAMEL

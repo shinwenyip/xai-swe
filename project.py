@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from imblearn.over_sampling import SMOTE
 from sklearn import svm, metrics
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import GaussianNB
@@ -107,6 +108,9 @@ class Project:
             global_model.fit(self.X_train.values, self.y_train)
         elif model_name == 'NB':
             global_model = GaussianNB()
+            global_model.fit(self.X_train.values,self.y_train.values)
+        elif model_name == 'DT':
+            global_model = DecisionTreeClassifier(random_state=self.random_state)
             global_model.fit(self.X_train.values,self.y_train.values)
         # elif model_name == 'NN':
         #     global_model = nn_small()
