@@ -42,7 +42,6 @@ def generate_explanations(explainer,X_test,y_test, global_model):
             explanation['name'] = row_index
             explanation['shap_values'] = shap_values[i]
             # row_values, row_expected_values, row_mask_shapes, main_effects = explainer.explain_row()
-        # faithfulness = faithfulness_metric(explanation['local_model'],X_explain,)
 
         explanations.append(explanation)
     return explanations 
@@ -90,7 +89,7 @@ def get_explanations(project,explain_method,model_name,X_train,y_train,global_mo
         with open(filepath,'rb') as f:
             explanations = pickle.load(f)
     else:
-        print(filepath)
+        print("file at",filepath)
         test_data_x,test_data_y,_= project.get_sampled_data(model_name)
         explanations = generate_explanations(explainer,test_data_x,test_data_y,global_model)
         with open(filepath,'wb') as f:
@@ -100,7 +99,7 @@ def get_explanations(project,explain_method,model_name,X_train,y_train,global_mo
 
 def evaluate_model_performance(project,model_name):
     """
-    performance check for original task model
+    print performance scores for original task model - train,test accuracy, precision, recall, f1
     """
     y_test = project.y_test.values
     model = project.models[model_name]
@@ -109,12 +108,10 @@ def evaluate_model_performance(project,model_name):
     if model_name == 'BRCG':
         pred = model.predict(project.X_test_bin)
         print(model_name + " Training accuracy(in %):", metrics.accuracy_score(project.y_train_rs, model.predict(project.X_train_bin))*100)
-        # print(model_name + " Test accuracy(in %):", metrics.accuracy_score(y_test, pred)*100)
   
     elif model_name == 'LogRR':
         pred = model.predict(project.X_test_bin, project.X_testStd)
         print(model_name + " Training accuracy(in %):", metrics.accuracy_score(project.y_train_rs, model.predict(project.X_train_bin,project.X_trainStd))*100)
-        # print(model_name + " Test accuracy(in %):", metrics.accuracy_score(project.y_test, pred)*100)
 
     elif model_name == 'NN':
         print(model_name + " Training accuracy(in %):", model.evaluate(project.X_trainNorm, project.y_train_rs, verbose=0)[1] *100)
@@ -139,9 +136,14 @@ def evaluate_model_performance(project,model_name):
     print(model_name +" recall(in %):", metrics.recall_score(y_test, pred)*100)
     print(model_name +" f1(in %):", metrics.f1_score(y_test, pred)*100)
 
-# util functions for evaluations
+
+# Util functions for evaluations
 
 def get_features_from_rules(rules):
+    """
+    return set of features extracted from rules string 
+    (RuleFit model output in PyExplainer explanation)
+    """
     features = []
     for rule in rules['rule']:
         rule_feats = re.findall('[a-zA-Z]+',rule)
@@ -152,7 +154,7 @@ def get_features_from_rules(rules):
 def feature_boundary_values(rule):
     """
     input : rfc > 36.65500068664551 & loc > -1015.6700439453125 & lcom > -815.7749938964844
-    return list of tuples (feature, value)
+    return : list of tuples [(feature, value)] where value of features are within stated range
     """
     boundaries = []
     props = rule.split(" & ")
@@ -172,7 +174,7 @@ def feature_boundary_values(rule):
 def feature_outside_boundary_values(rule):
     """
     input : rfc > 36.65500068664551 & loc > -1015.6700439453125 & lcom > -815.7749938964844
-    return list of tuples (feature, value)
+    return : list of tuples [(feature, value)] where value of features are outside stated range
     """
     values = []
     props = rule.split(" & ")
@@ -187,11 +189,12 @@ def feature_outside_boundary_values(rule):
         values.append((sep[0],value))
     return values
 
+
 # Below are functions for evaluation metrics - given a test set test_x,test_y, 3 explanations each (100)
 
 def prediction_fidelity(global_preds,lime_preds,py_preds,shap_preds):
     """
-    shows level of (dis)agreement between task model predictions and surrogate model predictions
+    shows level of (dis)agreement between task model predictions and surrogate model predictions using mcc, recall, precision
     """
     results = []
 
@@ -201,7 +204,7 @@ def prediction_fidelity(global_preds,lime_preds,py_preds,shap_preds):
     lime_res['recall'] = metrics.recall_score(np.array(global_preds)>0.5,np.array(lime_preds)>0.5)
     lime_res['precision'] = metrics.precision_score(np.array(global_preds)>0.5,np.array(lime_preds)>0.5)
     results.append(lime_res)
-    print(lime_res)
+    # print(lime_res)
 
     py_res = {}
     py_res['method'] = 'pyExplainer'
@@ -209,7 +212,7 @@ def prediction_fidelity(global_preds,lime_preds,py_preds,shap_preds):
     py_res['recall'] = metrics.recall_score(np.array(global_preds)>0.5,np.array(py_preds)>0.5)
     py_res['precision'] = metrics.precision_score(np.array(global_preds)>0.5,np.array(py_preds)>0.5)
     results.append(py_res)
-    print(py_res)
+    # print(py_res)
 
     shap_res = {}
     shap_res['method'] = 'shap'
@@ -217,33 +220,13 @@ def prediction_fidelity(global_preds,lime_preds,py_preds,shap_preds):
     shap_res['recall'] = metrics.recall_score(np.array(global_preds)>0.5,np.array(shap_preds)>0.5)
     shap_res['precision'] = metrics.precision_score(np.array(global_preds)>0.5,np.array(shap_preds)>0.5)
     results.append(shap_res)
-    print(shap_res)
+    # print(shap_res)
 
     return results
 
-def show_model_performance(global_preds,lime_preds,py_preds,shap_preds):
-    print('lime')
-    print('precision: ', metrics.precision_score(np.array(global_preds)>0.5,np.array(lime_preds)>0.5))
-    print('recall: ',metrics.recall_score(np.array(global_preds)>0.5,np.array(lime_preds)>0.5))
-    print('mac: ',metrics.matthews_corrcoef(np.array(global_preds)>0.5,np.array(lime_preds)>0.5))
-    # print(metrics.log_loss (np.array(global_preds)>0.5,np.array(lime_preds)>0.5))
-    print('avg probability diff: ',avg_proba_diff(global_preds, lime_preds))
-
-    print('pyExplainer')
-    print('precision: ',metrics.precision_score(np.array(global_preds)>0.5,np.array(py_preds)>0.5))
-    print('recall: ',metrics.recall_score(np.array(global_preds)>0.5,np.array(py_preds)>0.5))
-    print('mac: ',metrics.matthews_corrcoef(np.array(global_preds)>0.5,np.array(py_preds)>0.5))
-    print('avg probability diff: ',avg_proba_diff(global_preds, py_preds))
-
-    print('shap')
-    print('precision: ',metrics.precision_score(np.array(global_preds)>0.5,np.array(shap_preds)>0.5))
-    print('recall: ',metrics.recall_score(np.array(global_preds)>0.5,np.array(shap_preds)>0.5))
-    print('mac: ',metrics.matthews_corrcoef(np.array(global_preds)>0.5,np.array(shap_preds)>0.5))
-    print('avg probability diff: ',avg_proba_diff(global_preds, shap_preds))
-
 def internal_fidelity(global_model, X_test, y_test, lime_explanations, py_explanations, shap_explanations,):
     """
-    shows how well the explanation reflects the decision making process of original task model by 
+    Shows how well the explanation reflects the decision making process of original task model by 
     comparing feature importance values generated by interpretable task model vs explanations
     
     global_model: interpretable task model (Logistic Regressor)
@@ -253,29 +236,23 @@ def internal_fidelity(global_model, X_test, y_test, lime_explanations, py_explan
             avg_recall: average recall score across all test instances
             recalls: list of recall scores for all test instances
     """
-    # have 1 global interpretable model ()
-    # for each instance in (100) test instances, we calculate recall and precision measures using 
-    # true features(from global model) and explanation features
-    # if (global_model==None): # use decision tree
-    #     global_model = tree.DecisionTreeClassifier(random_state=1)
-    #     global_model.fit(X_test,y_test)
+    # 1. can extend to adapt to more interpretable models
+    # 2. can possibly add precision score - how many of the top 10 features(by explanations) is truly important(weights within top quartile of task model)
     features = X_test.columns
     result = []
 
     exp_list = { 'LIME': lime_explanations, 'PyExplainer': py_explanations, 'SHAP':shap_explanations }
     true_f = [ np.abs(x) for x in global_model.coef_[0]]
-    # feature_importances = pd.Series(data=true_f,index=X_test.columns)
     feature_importances = pd.Series(data=true_f)
-    # print("featimp ",feature_importances)
     feature_importances = feature_importances.sort_values(ascending=False)
 
-    for method in exp_list: # for each (method) explanations
+    for method in exp_list:
         method_res = {}
         method_res['method'] = method 
         recalls = []
         for exp_instance in exp_list[method]: # 100 instances
             true_features_indices = feature_importances[:10].index
-            # print(true_features_indices)
+
             if (method == 'LIME'):
                 rules = exp_instance['rule']
                 exp_feature_indices = exp_instance['selected_feature_indices']
@@ -286,16 +263,12 @@ def internal_fidelity(global_model, X_test, y_test, lime_explanations, py_explan
                 recalls.append(recall)
                 # instance['precision'] = 
                 # top_relevant_features = []
-                # precision = 
                 # for i,imp in rules.as_map()[1]:
                 #     if imp < top_importance_boundary:
                 #         break
-                #     top_relevant_features.append((i,imp))
-                # most relevant features (those where weights are in the top quartile) 
-
-            elif (method == 'PyExplainer'):
-                # FIXME to test fidelity of the explanation "features", do I use the features extracted from top important rules or filter individual features sorted according to importance values 
+                #     top_relevant_features.append((i,imp)) # most relevant features (those where weights are in the top quartile) 
                 
+            elif (method == 'PyExplainer'):
                 # method 1 - use features extracted from top 10 rules
                 # if exp_instance['y_explain'][0] == True:
                 #     top_rules = exp_instance['top_k_positive_rules'].head(10)
@@ -308,19 +281,16 @@ def internal_fidelity(global_model, X_test, y_test, lime_explanations, py_explan
                 exp_features = exp_instance['local_model'].get_rules().head(20).sort_values(by='importance',ascending=False)
                 exp_feature_indices = exp_features.index[:10]
 
-                if (len(exp_feature_indices)<10): # set len of top features to min of exp features and top features
+                # set len of top features to min of exp features and top features (when num of top rules < 10 - only for method 1)
+                if (len(exp_feature_indices)<10): 
                     true_features_indices = true_features_indices[:len(exp_feature_indices)]
-                    # print(exp_feature_indices)
-                # print("exp features", exp_feature_indices)
-                # print(set(true_features_indices))
-                # print(len(true_features_indices))
-                # print(exp_instance['X_explain'])
-                # print("pred: ",exp_instance['local_model'].predict(exp_instance['X_explain']))
+                # debug 
                 if (len(true_features_indices)==0):
                     print(exp_instance['name'])
                     print(exp_instance['y_explain'])
                     print(exp_instance['top_k_negative_rules'])
                     print(exp_instance['top_k_positive_rules'])
+                
                 recall = len(set(exp_feature_indices) & set(true_features_indices))/len(true_features_indices)
                 recalls.append(recall)
 
@@ -328,6 +298,7 @@ def internal_fidelity(global_model, X_test, y_test, lime_explanations, py_explan
                 exp_feature_indices = pd.Series(exp_instance['shap_values'])
                 exp_feature_indices = exp_feature_indices.sort_values(ascending=False).index
 
+                # set len of top features to min of exp features and top features
                 if (len(exp_feature_indices)<10):
                     print("len of exp features: ",  exp_feature_indices)
                     true_features_indices = true_features_indices[:len(exp_feature_indices)]
@@ -356,27 +327,23 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
         """
         # original predicted class of the instance
         pred_class = np.argmax(model.predict_proba(x.reshape(1,-1)),axis=1)[0]
+
+        # if clean class - negate coefficients (because pred_probs is wrt defect class)
         if pred_class == 0:
             coefs = [-c for c in coefs]
-        print("predicted class: ",pred_class)
-        #find indexs of coefficients in decreasing order of value
-        # ar = np.argsort(-coefs)  #argsort returns indexes of values sorted in increasing order; so do it for negated array
-        # pred_probs = np.zeros(x.shape[0])
         pred_probs = []
         for ind in np.nditer(np.array(indices)):
             x_copy = x.copy()
             x_copy[ind] = base[ind]
             x_copy_pr = model.predict_proba(x_copy.reshape(1,-1))
             pred_probs.append(x_copy_pr[0][pred_class])
-            # pred_probs[ind] = x_copy_pr[0][pred_class]
-        # print(coefs)
-        # if len(coefs)<len(pred_probs):
-        #     pred_probs = pred_probs[pred_probs!=0]
         corr = np.corrcoef(coefs, pred_probs)[0,1]
-        if (np.isnan(corr)):
-            print(type(global_model))
-            print(pred_probs)
+
+        if (np.isnan(corr)): # if no correlation - set to zero instead of nan
+            # print(type(global_model))
+            # print(pred_probs)
             return 0
+
         return -np.corrcoef(coefs, pred_probs)[0,1]
 
     result = []
@@ -390,10 +357,8 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
         sorted_indices = [np.abs(lime_exp.as_map()[1][i][0]) for i in range(len(lime_exp.as_map()[1]))] # sorted in order of decending importances
         coef_map = sorted(lime_exp.as_map()[1],key=itemgetter(0)) # top10 features sorted according to increasing index
         x = X_test.iloc[i].values # data row type ndarray
-        # coefs = [np.abs(coef_map[i][1]) for i in range(len(coef_map))] # coefs for top 10 features (sorted by index)
         coefs = [lime_exp.as_map()[1][i][1] for i in range(len(lime_exp.as_map()[1]))] # top 10 feature coefficients in descending order
         base = np.zeros(x.shape[0]) 
-
         fmlime = faithfulness_score(global_model,x,coefs,base,sorted_indices)
         lime_faithfulness.append(fmlime)
 
@@ -403,8 +368,6 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
         sorted_indices = np.argsort(-np.abs(coefs_shap))[:count]
         # coefs = np.sort(coefs_shap[coefs_shap!=0])[::-1]
         coefs = [coefs_shap[i] for i in sorted_indices]
-        # print("coefshap indices ",sorted_indices)
-        # print("coefshap ",coefs)
         fmshap = faithfulness_score(global_model,x,coefs,base,sorted_indices)
         shap_faithfulness.append(fmshap)
 
@@ -429,11 +392,9 @@ def faithfulness(global_model, X_test, lime_explanations, py_explanations, shap_
             pred_probs.append(x_copy_pr[0][pred_class])
             if (x_copy_pr[0][pred_class]==np.nan):
                 print(x_copy_pr)
-        # print(pred_probs)
         fmpy = -np.corrcoef(coefs_pyexp, pred_probs)[0,1]
         if (np.isnan(fmpy)):
             fmpy = 0
-
         py_faithfulness.append(fmpy)
 
     result.append({ 'method':'LIME','avg_faithfulness':np.mean(lime_faithfulness),'faithfulness_scores':lime_faithfulness})
@@ -459,11 +420,8 @@ def monotonicity(global_model, X_test, lime_explanations, py_explanations, shap_
         for ind in np.nditer(ar): #increasing importance
             x_copy[ind] = x[ind]
             x_copy_pr = model.predict_proba(x_copy.reshape(1,-1))
-            # pred_probs[ind] = x_copy_pr[0][pred_class]
             pred_probs.append(x_copy_pr[0][pred_class])
 
-        # pred_probs = pred_probs[pred_probs!=0]
-        # return np.all(np.diff(pred_probs[ar]) >= 0)
         return np.all(np.diff(pred_probs) >= 0)
 
     result = []
@@ -534,7 +492,6 @@ def monotonicity(global_model, X_test, lime_explanations, py_explanations, shap_
     
     return result
 
-
 def uniqueness(global_model, X_test, lime_explanations, py_explanations, shap_explanations):
     """
     returns percentage uniqueness of top 1 most important factor in each explanation 
@@ -549,15 +506,13 @@ def uniqueness(global_model, X_test, lime_explanations, py_explanations, shap_ex
         lime_exp = lime_explanations[i]['rule']
         top_lime = lime_exp.as_list()[0][0] # ex: loc > 543.00
         lime_top_exps.append(top_lime)
-        x = X_test.iloc[i].values
         pred_class = py_explanations[i]['local_model'].predict_proba(py_explanations[i]['X_explain'].values)[0][1]
-        # pred_class = global_model.predict(x.reshape(1,-1))[0].astype(int)
+
         if pred_class > 0.5:
             py_exp = py_explanations[i]['top_k_positive_rules']['rule'].iloc[0].strip()
         else:
             py_exp = py_explanations[i]['top_k_negative_rules']['rule'].iloc[0].strip()
         
-        # py_exp = py_explanations[i]['top_k_positive_rules']['rule'][0].strip()
         top_py = py_exp.split(" & ") # ['loc > 19', 'wmc > 9']
         py_top_exps = py_top_exps + top_py
 
@@ -587,13 +542,14 @@ def similarity(X_test, lime_explanations, py_explanations):
     results = pd.DataFrame()
     for i in range(len(X_test)):
         X_explain = X_test.iloc[[i]]
-        # row_index = str(X_explain.index[0])
         row_index = py_explanations[i]['name']
         pyExplanation = py_explanations[i]
         limeExplanation = lime_explanations[i]
+
         #calculate euclidean distance between X_explain and synthetic data
         py_euc = euclidean_distances(X_explain.values,pyExplanation['synthetic_data'].values)
         lime_euc = euclidean_distances(X_explain.values,limeExplanation['synthetic_instance_for_global_model'])
+        
         #calculate median 
         py_euc_med = np.median(py_euc)
         lime_euc_med = np.median(lime_euc)
@@ -611,118 +567,19 @@ def similarity(X_test, lime_explanations, py_explanations):
     result.append({ 'method':'pyExplainer','euc_dist_med': py_euc_meds})
 
     return results
-    # results.to_csv('./eval_results/'+'4_'+ project_name+'_'+'SVM'+'.csv',index=False)
 
-    # ant_svm = pd.read_csv('./eval_results/'+'4_ANT_SVM.csv')
-    
-    # ax= sns.boxplot(data=ant_svm, y='euc_dist_med', hue='method')
-    # ax.set(ylim=(0, 5000))
-    # plt.show()
+def show_model_performance(global_preds,lime_preds,py_preds,shap_preds):
+    print('lime')
+    print('precision: ', metrics.precision_score(np.array(global_preds)>0.5,np.array(lime_preds)>0.5))
+    print('recall: ',metrics.recall_score(np.array(global_preds)>0.5,np.array(lime_preds)>0.5))
+    print('mac: ',metrics.matthews_corrcoef(np.array(global_preds)>0.5,np.array(lime_preds)>0.5))
 
+    print('pyExplainer')
+    print('precision: ',metrics.precision_score(np.array(global_preds)>0.5,np.array(py_preds)>0.5))
+    print('recall: ',metrics.recall_score(np.array(global_preds)>0.5,np.array(py_preds)>0.5))
+    print('mac: ',metrics.matthews_corrcoef(np.array(global_preds)>0.5,np.array(py_preds)>0.5))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-# # ibm aix360 metrics - faithfulness and monotonicity
-# def faithfulness(model, x, coefs, base):
-#     #find predicted class
-#     pred_class = model.predict(x.reshape(1,-1))[0].astype(int)
-    
-#     #find indexs of coefficients in decreasing order of value
-#     ar = np.argsort(-coefs)  #argsort returns indexes of values sorted in increasing order; so do it for negated array
-#     pred_probs = np.zeros(x.shape[0])
-#     for ind in np.nditer(ar):
-#         x_copy = x.copy()
-#         x_copy[ind] = base[ind]
-#         x_copy_pr = model.predict_proba(x_copy.reshape(1,-1))
-#         pred_probs[ind] = x_copy_pr[0][pred_class]
-#         if (pred_probs[ind]==np.nan):
-#             print(x_copy_pr)
-#     print(pred_probs)
-#     return -np.corrcoef(coefs, pred_probs)[0,1]
-    
-# def monotonicity(model, x, coefs, base):
-#     #find predicted class
-#     pred_class = model.predict(x.reshape(1,-1))[0].astype(int)
-
-#     x_copy = base.copy()
-
-#     #find indexs of coefficients in increasing order of value
-#     ar = np.argsort(coefs)
-#     pred_probs = np.zeros(x.shape[0])
-#     for ind in np.nditer(ar):
-#         x_copy[ind] = x[ind]
-#         x_copy_pr = model.predict_proba(x_copy.reshape(1,-1))
-#         pred_probs[ind] = x_copy_pr[0][pred_class]
-
-#     return np.all(np.diff(pred_probs[ar]) >= 0)
-
-# calculate average percentage difference between prediction probabilities of global model and local model
-# def avg_proba_diff(global_pred_proba, local_pred_proba):
-#     # print('avg ', np.sum(local_pred_proba)/len(local_pred_proba))
-#     if len(global_pred_proba)!= len(local_pred_proba):
-#         print('unmatched length')
-#         return
-
-#     percentage_diffs = [(abs(global_pred_proba[i]-local_pred_proba[i])) for i in range(0, len(global_pred_proba))]
-    
-#     return np.sum(percentage_diffs)/len(global_pred_proba)   
-
-# def faithfulness_and_monotonicity(test_data_x,lime_explanations, shap_explanations):
-#     lime_faithfulness = []
-#     lime_monotonicity = []
-#     shap_faithfulness = []
-#     shap_monotonicity = []
-#     for i in range(len(test_data_x)):
-#         local_preds = list(lime_explanations[i]['rule'].local_pred.values())[0][0]
-#         name = lime_explanations[i]['name']
-#         lime_exp = lime_explanations[i]['rule']
-#         x = test_data_x.iloc[i].values # data row type ndarray
-#         coefs = np.zeros(x.shape[0])  # coefficients (weights) corresponding to attribute importance
-#         # pred_class = int(np.round(global_preds[i]))
-#         for v in lime_exp.local_exp[1]:
-#             coefs[v[0]] = v[1]
-#         base = np.zeros(x.shape[0])
-#         fmlime = faithfulness(global_model,x,coefs,base)
-#         lime_faithfulness.append(fmlime)
-#         mlime = monotonicity(global_model,x,coefs,base)
-#         lime_monotonicity.append(mlime)
-
-#         coefs_shap = shap_explanations[i]['shap_values']
-#         fmshap = faithfulness(global_model,x,coefs_shap,base)
-#         shap_faithfulness.append(fmshap)
-#         mshap = monotonicity(global_model,x,coefs_shap,base)
-#         shap_monotonicity.append(mshap)
-#         # print('Lime local prediction ' , local_preds)
-#         # print('Global model prediction', lime_explanations[0]['rule'].predict_proba[1]) #global model prediction
-#     lime_avg_faithfulness = sum(lime_faithfulness)/len(lime_faithfulness)
-#     lime_percentage_monotonicity = sum(lime_monotonicity)/len(lime_monotonicity)
-#     shap_avg_faithfulness = sum(shap_faithfulness)/len(shap_faithfulness)
-#     shap_percentage_monotonicity = sum(shap_monotonicity)/len(shap_monotonicity)
-#     print("lime_avg_faithfulness: ",lime_avg_faithfulness)
-#     print("lime_percentage_monotonicity: " ,lime_percentage_monotonicity)
-#     print("shap_avg_faithfulness: ", shap_avg_faithfulness)
-#     print("shap_percentage_monotonicity: ", shap_percentage_monotonicity)
-#     return lime_faithfulness,lime_monotonicity,shap_faithfulness,shap_monotonicity
-
-# def get_percent_unique_explanation(explanation_list):
-#     total_exp = len(explanation_list)
-#     total_unique_exp = len(set(explanation_list))
-#     percent_unique = (total_unique_exp/total_exp)*100
-
-#     count_exp = Counter(explanation_list)
-#     max_exp_count = max(list(count_exp.values()))
-#     percent_dup_explanation = (max_exp_count/total_exp)*100
-
-#     print('% unique explanation is',round(percent_unique,2))
-#     print('% duplicate explanation is', round(percent_dup_explanation))
+    print('shap')
+    print('precision: ',metrics.precision_score(np.array(global_preds)>0.5,np.array(shap_preds)>0.5))
+    print('recall: ',metrics.recall_score(np.array(global_preds)>0.5,np.array(shap_preds)>0.5))
+    print('mac: ',metrics.matthews_corrcoef(np.array(global_preds)>0.5,np.array(shap_preds)>0.5))
