@@ -199,12 +199,7 @@ dependencies:
     - libuuid==1.0.3
     - libgomp==11.2.0
     - libxcb==1.14
-    - _openmp_mutex==4.5
-    - ld_impl_linux-64==2.35.1
     - ncurses==6.3
     - readline==8.1.2
-    - freetype=2.11.0
-    - libgfortran5==11.2.0
-    - libgcc-ng==11.2.0
-    - libgfortran-ng==11.2.0
+    - freetype==2.11.0
 prefix: /anaconda/envs/xaienv
