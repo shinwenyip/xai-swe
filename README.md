@@ -17,8 +17,8 @@ not already installed on your machine.
    To create a working environment for running the project code:
    (make sure you are in the xai-swe directory where the env.yml file is located)
    ```bash
-     conda activate xaienv
-     conda env create -f env.yml
+      conda env create -f env.yml
+      conda activate xaienv
    ```
 
 3. **View Experiment results**
