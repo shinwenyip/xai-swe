@@ -132,6 +132,10 @@ dependencies:
   - zipp=3.7.0
   - zlib=1.2.11
   - zstd=1.4.9
+  - gstreamer
+  - gst-plugins-base
+  - libxcb
+  - freetype
   - pip:
     - absl-py==1.0.0
     - aix360==0.1.0
@@ -192,14 +196,6 @@ dependencies:
     - werkzeug==2.0.3
     - wrapt==1.13.3
     - xport==3.6.1
-    - dbus==1.13.18
-    - gstreamer==1.14.0
-    - libstdcxx-ng==11.2.0
-    - gst-plugins-base==1.14.0
-    - libuuid==1.0.3
-    - libgomp==11.2.0
-    - libxcb==1.14
-    - ncurses==6.3
-    - readline==8.1.2
-    - freetype==2.11.0
+
+    
 prefix: /anaconda/envs/xaienv
