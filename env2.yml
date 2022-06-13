@@ -192,19 +192,19 @@ dependencies:
     - werkzeug==2.0.3
     - wrapt==1.13.3
     - xport==3.6.1
-    - dbus=1.13.18
-    - gstreamer=1.14.0
-    - libstdcxx-ng=11.2.0
-    - gst-plugins-base=1.14.0
-    - libuuid=1.0.3
-    - libgomp=11.2.0
-    - libxcb=1.14
-    - _openmp_mutex=4.5
-    - ld_impl_linux-64=2.35.1
-    - ncurses=6.3
-    - readline=8.1.2
+    - dbus==1.13.18
+    - gstreamer==1.14.0
+    - libstdcxx-ng==11.2.0
+    - gst-plugins-base==1.14.0
+    - libuuid==1.0.3
+    - libgomp==11.2.0
+    - libxcb==1.14
+    - _openmp_mutex==4.5
+    - ld_impl_linux-64==2.35.1
+    - ncurses==6.3
+    - readline==8.1.2
     - freetype=2.11.0
-    - libgfortran5=11.2.0
-    - libgcc-ng=11.2.0
-    - libgfortran-ng=11.2.0
+    - libgfortran5==11.2.0
+    - libgcc-ng==11.2.0
+    - libgfortran-ng==11.2.0
 prefix: /anaconda/envs/xaienv
