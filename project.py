@@ -14,8 +14,8 @@ from collections import Counter
 from aix360.algorithms.rbm import FeatureBinarizer,BooleanRuleCG,LogisticRuleRegression
 # for neural networks
 # import tensorflow as tf
-import keras.models as km
-from keras.layers import Dense
+# import keras.models as km
+# from keras.layers import Dense
 # from aix360.algorithms.contrastive import CEMExplainer, KerasClassifier 
 # from aix360.algorithms.protodash import ProtodashExplainer
 # from keras.models import Sequential, Model, load_model, model_from_json
