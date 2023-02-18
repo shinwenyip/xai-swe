@@ -92,8 +92,13 @@ def get_explanations(project,explain_method,model_name,X_train,y_train,global_mo
         print("file at",filepath)
         test_data_x,test_data_y,_= project.get_sampled_data(model_name)
         explanations = generate_explanations(explainer,test_data_x,test_data_y,global_model)
-        with open(filepath,'wb') as f:
-            pickle.dump(explanations,f)
+        try: 
+            if not os.path.exists("explanations/"):
+                os.makedirs("explanations/")
+            with open(filepath,'wb') as f:
+                pickle.dump(explanations,f)
+        except:
+            print("error storing in file")
 
     return explainer,explanations
 
